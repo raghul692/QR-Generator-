@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  # ===== MySQL Database =====
+  db:
+    image: mysql:8.0
+    container_name: qrmaster_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: qrmaster_pro
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+
+  # ===== FastAPI Backend =====
+  backend:
+    build: ./backend
+    container_name: qrmaster_backend
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASSWORD=root
+      - DB_NAME=qrmaster_pro
+    depends_on:
+      - db
+    volumes:
+      - ./backend/app:/app/app
+
+  # ===== React Frontend =====
+  frontend:
+    build: ./frontend
+    container_name: qrmaster_frontend
+    restart: always
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend/src:/app/src
+
+volumes:
+  mysql_data:
