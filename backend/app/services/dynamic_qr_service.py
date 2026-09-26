@@ -39,6 +39,8 @@ class DynamicQRService:
         qr_history_id: Optional[int] = None,
         password: Optional[str] = None,
         expires_at: Optional[datetime] = None,
+        ios_target_url: Optional[str] = None,
+        android_target_url: Optional[str] = None,
     ) -> DynamicQR:
         """Create a new Dynamic QR record."""
         short_code = self.generate_short_code(db)
@@ -55,6 +57,8 @@ class DynamicQRService:
             expires_at=expires_at,
             is_active=True,
             scan_count=0,
+            ios_target_url=ios_target_url,
+            android_target_url=android_target_url,
         )
         db.add(dyn_qr)
         db.commit()
@@ -75,6 +79,8 @@ class DynamicQRService:
         is_active: Optional[bool] = None,
         password: Optional[str] = None,
         expires_at: Optional[datetime] = None,
+        ios_target_url: Optional[str] = None,
+        android_target_url: Optional[str] = None,
     ) -> DynamicQR:
         """Update Dynamic QR code attributes (e.g. target URL after print)."""
         dyn = db.query(DynamicQR).filter(DynamicQR.id == dynamic_id).first()
@@ -93,6 +99,10 @@ class DynamicQRService:
             )
         if expires_at is not None:
             dyn.expires_at = expires_at
+        if ios_target_url is not None:
+            dyn.ios_target_url = ios_target_url
+        if android_target_url is not None:
+            dyn.android_target_url = android_target_url
 
         db.commit()
         db.refresh(dyn)

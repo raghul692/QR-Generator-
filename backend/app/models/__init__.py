@@ -255,6 +255,8 @@ class DynamicQR(Base, TimestampMixin):
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     scan_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    ios_target_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    android_target_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Relationships
     scan_logs: Mapped[list["ScanLog"]] = relationship(

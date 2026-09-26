@@ -63,6 +63,19 @@ def generate_qr(req: QRGenerateRequest, db: Session = Depends(get_db)):
             customization=req.customization,
             save_to_history=req.save_to_history,
         )
+        if req.is_dynamic and result.get("id"):
+            from app.services.dynamic_qr_service import dynamic_qr_service
+            target = req.data.get("url") or result.get("content") or "https://qrmaster.pro"
+            dynamic_qr_service.create_dynamic_qr(
+                db=db,
+                title=req.title,
+                target_url=target,
+                qr_history_id=result.get("id"),
+                password=req.password,
+                expires_at=req.expires_at,
+                ios_target_url=req.ios_target_url,
+                android_target_url=req.android_target_url,
+            )
         return QRGenerateResponse(**result)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))

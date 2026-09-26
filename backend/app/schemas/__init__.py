@@ -38,6 +38,11 @@ class QRGenerateRequest(BaseModel):
     category_id: Optional[int] = None
     save_to_history: bool = Field(default=True, description="Persist to qr_history")
     customization: Optional[Dict[str, Any]] = Field(default=None, description="Visual options")
+    is_dynamic: bool = Field(default=False, description="Enable dynamic shortlink")
+    password: Optional[str] = None
+    expires_at: Optional[datetime] = None
+    ios_target_url: Optional[str] = None
+    android_target_url: Optional[str] = None
 
 
 class QRGenerateResponse(BaseModel):
