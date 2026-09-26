@@ -18,6 +18,17 @@ from app.services.dynamic_qr_service import dynamic_qr_service
 router = APIRouter(tags=["Dynamic QR Redirection"])
 
 
+def resolve_target_url(dyn, user_agent_str: Optional[str]) -> str:
+    """Intelligently route to device-specific OS URL (iOS / Android) if configured."""
+    if user_agent_str:
+        ua_lower = user_agent_str.lower()
+        if getattr(dyn, "ios_target_url", None) and ("iphone" in ua_lower or "ipad" in ua_lower or "ios" in ua_lower):
+            return dyn.ios_target_url
+        if getattr(dyn, "android_target_url", None) and "android" in ua_lower:
+            return dyn.android_target_url
+    return dyn.target_url
+
+
 @router.get("/r/{short_code}")
 def redirect_dynamic_qr(
     short_code: str,
@@ -106,7 +117,8 @@ def redirect_dynamic_qr(
     ip = request.client.host if request.client else None
     dynamic_qr_service.log_scan(db, dyn, ip_address=ip, user_agent_str=user_agent, referer=referer)
 
-    return RedirectResponse(url=dyn.target_url, status_code=307)
+    destination = resolve_target_url(dyn, user_agent)
+    return RedirectResponse(url=destination, status_code=307)
 
 
 @router.post("/r/{short_code}/unlock")
@@ -151,4 +163,5 @@ def unlock_dynamic_qr(
     ip = request.client.host if request.client else None
     dynamic_qr_service.log_scan(db, dyn, ip_address=ip, user_agent_str=user_agent, referer=referer)
 
-    return RedirectResponse(url=dyn.target_url, status_code=307)
+    destination = resolve_target_url(dyn, user_agent)
+    return RedirectResponse(url=destination, status_code=307)

@@ -10,18 +10,25 @@ A production-ready, enterprise-grade **QR Code Generator, Analytics & Management
 
 ---
 
-## ✨ Enterprise Features
+## ✨ Enterprise Features (2026 Studio Edition)
 
-### 🔹 1. Dynamic QR Codes & Short-Code Routing
+### 🔹 1. QR Studio 2.0 & Instant 60fps Vector Canvas
+- **0ms Real-Time Client Rendering**: Powered by `qr-code-styling` for latency-free design adjustments.
+- **Interactive Real-World Mockups**: Preview in 4 contexts: Pure Vector Canvas, Smartphone Notification, Acrylic Table Tent, and Matte Business Card.
+- **Scannability & Contrast Health Guard**: Real-time WCAG contrast calculation with confidence score badges to prevent unscannable codes.
+- **1-Click Curated Presets**: Obsidian Glow, Emerald Luxe, Sunset Neon, Cyber Cyan, Swiss Clean, and Royal Trust.
+
+### 🔹 2. Dynamic QR Codes & Smart OS Redirection
 - **Editable Destination URLs**: Update target URLs anytime without re-printing QR codes.
+- **Smart Device Routing**: Intelligent redirection based on user agent (iOS App Store vs. Android Google Play Store vs. Desktop fallback).
 - **Short URL Redirect Engine**: Ultra-fast redirection service (`/r/{short_code}`) with automated scan logging.
 - **Password Protection**: Secure dynamic links using SHA-256 hashed password verification before redirection.
 - **Expiration Controls**: Set custom expiration datetimes for promotional or limited-time QR campaigns.
 
-### 🔹 2. Real-Time Scan Analytics
+### 🔹 3. Bento Analytics & Real-Time Telemetry
 - **Device & Browser Detection**: Automated User-Agent parsing (Mobile, Tablet, Desktop, Operating Systems).
 - **IP & Geo Insights**: Log IP addresses and scan timestamps for each interaction.
-- **Scan Metrics**: Track total scans, active dynamic links, and password-protected scan attempts.
+- **High-Density Bento Grid**: KPIs, daily/monthly throughput charts, category mix donuts, and reliability telemetry.
 
 ### 🔹 3. Enterprise Printable Sticker Sheet Export
 - **A4 Grid PDF Generator**: Automated PDF generation via `ReportLab` producing print-ready A4 sticker sheets (3x7 grid, 21 QR stickers per sheet).

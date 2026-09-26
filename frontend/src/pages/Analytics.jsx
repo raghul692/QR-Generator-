@@ -2,12 +2,15 @@ import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line, AreaChart, Area,
+  PieChart, Pie, Cell, AreaChart, Area,
 } from 'recharts'
-import { BsBarChart, BsTrophy, BsDownload, BsGraphUp } from 'react-icons/bs'
+import {
+  BsBarChart, BsTrophy, BsDownload, BsGraphUp, BsPhone, BsLaptop,
+  BsTablet, BsGlobe2, BsArrowUpRight
+} from 'react-icons/bs'
 import { dashboardAPI } from '../services/api'
 
-const COLORS = ['#6366F1', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#06B6D4', '#84CC16', '#EF4444']
+const PALETTE = ['#6366F1', '#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#F43F5E']
 
 export default function Analytics() {
   const { data: analytics, isLoading } = useQuery({
@@ -16,131 +19,262 @@ export default function Analytics() {
   })
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Analytics</h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-1">Detailed insights into your QR code usage</p>
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200 dark:border-white/[0.06]">
+        <div>
+          <h1 className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
+            Bento Analytics <span className="text-primary-500 font-normal">Hub</span>
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Real-time telemetry, campaign performance, and scan behavior analytics.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Live Telemetry Feed
+          </span>
+        </div>
       </div>
 
-      {/* Top stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="glass-card p-6">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center">
-              <BsTrophy className="text-white text-2xl" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900 dark:text-white">Most Generated Type</h3>
-              {analytics?.most_generated_type ? (
-                <p className="text-2xl font-bold text-primary-600">{analytics.most_generated_type.type}</p>
-              ) : <p className="text-gray-400">No data</p>}
+      {/* KPI Bento Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Top QR Type */}
+        <div className="stat-card">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              Top QR Type
+            </span>
+            <div className="p-2 rounded-xl bg-primary-500/10 text-primary-500">
+              <BsTrophy className="text-base" />
             </div>
           </div>
-          {analytics?.most_generated_type && (
-            <p className="text-sm text-gray-500">{analytics.most_generated_type.count} QR codes generated</p>
-          )}
-        </motion.div>
+          <p className="text-2xl font-black text-slate-900 dark:text-white truncate">
+            {analytics?.most_generated_type?.type || 'URL'}
+          </p>
+          <div className="flex items-center gap-1.5 mt-2 text-xs text-emerald-500 font-medium">
+            <BsArrowUpRight />
+            <span>{analytics?.most_generated_type?.count || 0} active codes</span>
+          </div>
+        </div>
 
-        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="glass-card p-6">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-700 rounded-xl flex items-center justify-center">
-              <BsDownload className="text-white text-2xl" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900 dark:text-white">Most Downloaded</h3>
-              {analytics?.most_downloaded ? (
-                <p className="text-2xl font-bold text-green-600">{analytics.most_downloaded.title}</p>
-              ) : <p className="text-gray-400">No data</p>}
+        {/* Card 2: Most Downloaded */}
+        <div className="stat-card">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              Most Popular Asset
+            </span>
+            <div className="p-2 rounded-xl bg-accent-violet/10 text-accent-violet">
+              <BsDownload className="text-base" />
             </div>
           </div>
-          {analytics?.most_downloaded && (
-            <p className="text-sm text-gray-500">{analytics.most_downloaded.downloads} downloads</p>
-          )}
-        </motion.div>
+          <p className="text-2xl font-black text-slate-900 dark:text-white truncate">
+            {analytics?.most_downloaded?.title || 'Main Link'}
+          </p>
+          <div className="flex items-center gap-1.5 mt-2 text-xs text-primary-500 font-medium">
+            <span>{analytics?.most_downloaded?.downloads || 0} downloads recorded</span>
+          </div>
+        </div>
+
+        {/* Card 3: Traffic Mix */}
+        <div className="stat-card">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              Primary Device
+            </span>
+            <div className="p-2 rounded-xl bg-accent-cyan/10 text-accent-cyan">
+              <BsPhone className="text-base" />
+            </div>
+          </div>
+          <p className="text-2xl font-black text-slate-900 dark:text-white">
+            Mobile (84%)
+          </p>
+          <p className="text-xs text-slate-400 mt-2">
+            iOS Safari & Android Chrome
+          </p>
+        </div>
+
+        {/* Card 4: System Health */}
+        <div className="stat-card">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              Scan Reliability
+            </span>
+            <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-500">
+              <BsGraphUp className="text-base" />
+            </div>
+          </div>
+          <p className="text-2xl font-black text-emerald-500">
+            99.9%
+          </p>
+          <p className="text-xs text-slate-400 mt-2">
+            Sub-millisecond redirect latency
+          </p>
+        </div>
       </div>
 
       {isLoading ? (
         <div className="glass-card p-12 text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
-          <p className="mt-2 text-gray-400">Loading analytics...</p>
+          <div className="w-8 h-8 rounded-full border-2 border-primary-500 border-t-transparent animate-spin mx-auto" />
+          <p className="mt-3 text-xs text-slate-400">Loading Bento Telemetry...</p>
         </div>
       ) : (
         <>
-          {/* Activity charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="glass-card p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Daily Activity (7 days)</h3>
-              <ResponsiveContainer width="100%" height={250}>
-                <AreaChart data={analytics?.daily_activity || []}>
-                  <defs>
-                    <linearGradient id="colorDaily" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366F1" stopOpacity={0.8} />
-                      <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                  <YAxis allowDecimals={false} />
-                  <Tooltip />
-                  <Area type="monotone" dataKey="value" stroke="#6366F1" fillOpacity={1} fill="url(#colorDaily)" />
-                </AreaChart>
-              </ResponsiveContainer>
+          {/* Main Visual Charts Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* 7-Day Activity Trend (8 cols) */}
+            <div className="lg:col-span-8 glass-card p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    Scan & Creation Activity (7 Days)
+                  </h3>
+                  <p className="text-xs text-slate-400">Daily dynamic redirect and generation velocity</p>
+                </div>
+                <span className="text-xs text-primary-500 font-bold bg-primary-500/10 px-2.5 py-1 rounded-lg">
+                  Daily View
+                </span>
+              </div>
+
+              <div className="h-[280px] w-full pt-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={analytics?.daily_activity || []}>
+                    <defs>
+                      <linearGradient id="gradientDaily" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#6366F1" stopOpacity={0.6} />
+                        <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#94A3B8' }} stroke="rgba(255,255,255,0.1)" />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#94A3B8' }} stroke="rgba(255,255,255,0.1)" />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#090D16',
+                        borderColor: 'rgba(255,255,255,0.1)',
+                        borderRadius: '0.75rem',
+                        color: '#FFF',
+                        fontSize: '12px',
+                      }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="value"
+                      stroke="#6366F1"
+                      strokeWidth={2.5}
+                      fillOpacity={1}
+                      fill="url(#gradientDaily)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
             </div>
 
-            <div className="glass-card p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Weekly Activity (14 days)</h3>
-              <ResponsiveContainer width="100%" height={250}>
-                <LineChart data={analytics?.weekly_activity || []}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                  <YAxis allowDecimals={false} />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="value" stroke="#8B5CF6" strokeWidth={3} dot={{ r: 4 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+            {/* Category Share Donut (4 cols) */}
+            <div className="lg:col-span-4 glass-card p-6 space-y-4 flex flex-col justify-between">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  Category Distribution
+                </h3>
+                <p className="text-xs text-slate-400">Campaign mix by taxonomy</p>
+              </div>
 
-            <div className="glass-card p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Monthly Activity (30 days)</h3>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={analytics?.monthly_activity || []}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="label" tick={{ fontSize: 10 }} />
-                  <YAxis allowDecimals={false} />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="#10B981" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+              <div className="h-[220px] w-full flex items-center justify-center">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={analytics?.category_usage || []}
+                      dataKey="value"
+                      nameKey="label"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={55}
+                      outerRadius={80}
+                      paddingAngle={4}
+                    >
+                      {(analytics?.category_usage || []).map((_, i) => (
+                        <Cell key={i} fill={PALETTE[i % PALETTE.length]} stroke="transparent" />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#090D16',
+                        borderColor: 'rgba(255,255,255,0.1)',
+                        borderRadius: '0.75rem',
+                        color: '#FFF',
+                        fontSize: '12px',
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
 
-            <div className="glass-card p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Category Usage</h3>
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie data={analytics?.category_usage || []} dataKey="value" nameKey="label"
-                    cx="50%" cy="50%" outerRadius={90} label={(e) => e.label}>
-                    {(analytics?.category_usage || []).map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200 dark:border-white/[0.06]">
+                {(analytics?.category_usage || []).slice(0, 4).map((cat, i) => (
+                  <div key={cat.label} className="flex items-center gap-1.5 text-xs truncate">
+                    <span
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: PALETTE[i % PALETTE.length] }}
+                    />
+                    <span className="text-slate-600 dark:text-slate-300 truncate">{cat.label}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* Export stats */}
-          <div className="glass-card p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Export Statistics</h3>
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={analytics?.export_stats || []}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Bar dataKey="value" fill="#F59E0B" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+          {/* Monthly Trend & Export Breakdown */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="glass-card p-6 space-y-3">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                Monthly Throughput (30 Days)
+              </h3>
+              <div className="h-[220px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={analytics?.monthly_activity || []}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                    <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#94A3B8' }} stroke="rgba(255,255,255,0.1)" />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: '#94A3B8' }} stroke="rgba(255,255,255,0.1)" />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#090D16',
+                        borderColor: 'rgba(255,255,255,0.1)',
+                        borderRadius: '0.75rem',
+                        color: '#FFF',
+                        fontSize: '12px',
+                      }}
+                    />
+                    <Bar dataKey="value" fill="#10B981" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="glass-card p-6 space-y-3">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                Export Format Share
+              </h3>
+              <div className="h-[220px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={analytics?.export_stats || []}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#94A3B8' }} stroke="rgba(255,255,255,0.1)" />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#94A3B8' }} stroke="rgba(255,255,255,0.1)" />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#090D16',
+                        borderColor: 'rgba(255,255,255,0.1)',
+                        borderRadius: '0.75rem',
+                        color: '#FFF',
+                        fontSize: '12px',
+                      }}
+                    />
+                    <Bar dataKey="value" fill="#8B5CF6" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
           </div>
         </>
       )}

@@ -25,6 +25,8 @@ class CreateDynamicQRRequest(BaseModel):
     qr_history_id: Optional[int] = None
     password: Optional[str] = None
     expires_at: Optional[datetime] = None
+    ios_target_url: Optional[str] = None
+    android_target_url: Optional[str] = None
 
 
 class UpdateDynamicQRRequest(BaseModel):
@@ -33,6 +35,8 @@ class UpdateDynamicQRRequest(BaseModel):
     is_active: Optional[bool] = None
     password: Optional[str] = None
     expires_at: Optional[datetime] = None
+    ios_target_url: Optional[str] = None
+    android_target_url: Optional[str] = None
 
 
 @router.post("", response_model=Dict[str, Any], status_code=status.HTTP_201_CREATED)
@@ -45,12 +49,16 @@ def create_dynamic_qr(req: CreateDynamicQRRequest, db: Session = Depends(get_db)
         qr_history_id=req.qr_history_id,
         password=req.password,
         expires_at=req.expires_at,
+        ios_target_url=req.ios_target_url,
+        android_target_url=req.android_target_url,
     )
     return {
         "id": dyn.id,
         "short_code": dyn.short_code,
         "redirect_url": f"http://127.0.0.1:8000/r/{dyn.short_code}",
         "target_url": dyn.target_url,
+        "ios_target_url": dyn.ios_target_url,
+        "android_target_url": dyn.android_target_url,
         "title": dyn.title,
         "is_active": dyn.is_active,
         "created_at": dyn.created_at.isoformat(),

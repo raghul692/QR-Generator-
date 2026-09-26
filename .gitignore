@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+venv/
+backend/venv/
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Vite / Build outputs
+frontend/dist/
+dist/
+
+# OS files
+.DS_Store
+Thumbs.db
