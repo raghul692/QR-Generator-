@@ -13,6 +13,7 @@ from sqlalchemy import func, distinct, or_
 from sqlalchemy.orm import Session
 
 from app.models import (
+    ActivityLog,
     QRCategory,
     QRBulkJob,
     QRExport,
@@ -73,6 +74,16 @@ class AnalyticsService:
             .filter(ScanLog.scanned_at >= today_start)
             .scalar() or 0
         )
+        unique_scans = (
+            db.query(func.count(distinct(ScanLog.ip_address)))
+            .filter(ScanLog.ip_address != None)
+            .scalar() or 0
+        )
+        failed_password_attempts = (
+            db.query(func.count(ActivityLog.id))
+            .filter(ActivityLog.action == "failed_password_attempt")
+            .scalar() or 0
+        )
 
         return {
             "total_qr": total_qr,
@@ -86,6 +97,8 @@ class AnalyticsService:
             "expired_dynamic_qr": expired_dynamic,
             "total_scans": total_scans,
             "today_scans": today_scans,
+            "unique_scans": unique_scans,
+            "failed_password_attempts": failed_password_attempts,
         }
 
     # ------------------------------------------------------------------ #
@@ -99,6 +112,8 @@ class AnalyticsService:
             "download_trends": self._download_trends(db, days=7),
             "scan_trends": self._scan_trends(db, days=7),
             "device_distribution": self._device_distribution(db),
+            "browser_distribution": self._browser_distribution(db),
+            "os_distribution": self._os_distribution(db),
         }
 
     def _qr_type_distribution(self, db: Session) -> List[Dict[str, Any]]:
@@ -185,6 +200,29 @@ class AnalyticsService:
         )
         return [{"label": r[0] or "Unknown", "value": r[1]} for r in rows]
 
+    def _browser_distribution(self, db: Session) -> List[Dict[str, Any]]:
+        rows = db.query(ScanLog.browser).filter(ScanLog.browser != None).all()
+        counts: Dict[str, int] = {}
+        for (raw,) in rows:
+            if not raw:
+                continue
+            family = raw.split(" (")[0].strip() or "Unknown"
+            counts[family] = counts.get(family, 0) + 1
+        return [{"label": k, "value": v} for k, v in sorted(counts.items(), key=lambda x: x[1], reverse=True)[:8]]
+
+    def _os_distribution(self, db: Session) -> List[Dict[str, Any]]:
+        rows = db.query(ScanLog.browser).filter(ScanLog.browser != None).all()
+        counts: Dict[str, int] = {}
+        for (raw,) in rows:
+            if not raw:
+                continue
+            if " (" in raw and raw.endswith(")"):
+                os_family = raw.split(" (", 1)[1].rstrip(")").strip() or "Unknown"
+            else:
+                os_family = "Unknown"
+            counts[os_family] = counts.get(os_family, 0) + 1
+        return [{"label": k, "value": v} for k, v in sorted(counts.items(), key=lambda x: x[1], reverse=True)[:8]]
+
     # ------------------------------------------------------------------ #
     #  Full analytics
     # ------------------------------------------------------------------ #
@@ -222,10 +260,23 @@ class AnalyticsService:
             for r in top_scanned_rows if r[3] > 0
         ]
 
+        unique_scans = (
+            db.query(func.count(distinct(ScanLog.ip_address)))
+            .filter(ScanLog.ip_address != None)
+            .scalar() or 0
+        )
+        failed_password_attempts = (
+            db.query(func.count(ActivityLog.id))
+            .filter(ActivityLog.action == "failed_password_attempt")
+            .scalar() or 0
+        )
+
         return {
             "most_generated_type": most_generated_type,
             "most_downloaded": most_downloaded,
             "top_scanned_qrs": top_scanned,
+            "unique_scans": unique_scans,
+            "failed_password_attempts": failed_password_attempts,
             "category_usage": self._category_distribution(db),
             "daily_activity": self._daily_generation(db, days=7),
             "weekly_activity": self._daily_generation(db, days=14),
@@ -233,6 +284,8 @@ class AnalyticsService:
             "scan_trends_7d": self._scan_trends(db, days=7),
             "scan_trends_30d": self._scan_trends(db, days=30),
             "device_stats": self._device_distribution(db),
+            "browser_stats": self._browser_distribution(db),
+            "os_stats": self._os_distribution(db),
             "export_stats": self._export_stats(db),
         }
 

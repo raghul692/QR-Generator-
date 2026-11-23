@@ -13,9 +13,10 @@ An enterprise-grade **QR Code Generator, Analytics & Management Platform** built
 ## ✨ Enterprise Features
 
 ### 🔹 1. Dynamic QR Codes & Short-Code Routing
+- **Dedicated Management UI**: Full management dashboard at `/dynamic` for viewing short codes, updating destinations, toggling active states, and inspecting per-QR analytics modals.
 - **Editable Destination URLs**: Update destination URLs anytime without re-printing physical QR codes.
 - **Production Short URL Redirection**: Fast redirection service (`/r/{short_code}`) with automated scan telemetry.
-- **Argon2id Password Protection**: Secure dynamic links using Argon2id password verification before redirection, with automatic upgrade for legacy hashes.
+- **Argon2id Password Protection**: Secure dynamic links using Argon2id password verification before redirection, with automatic upgrade for legacy hashes and failed attempt audit logs.
 - **Campaign Expiration Datetime**: Set expiration limits for promotional or temporary QR codes (returns HTTP 410 when expired).
 
 ### 🔹 2. Real-Time Scan Analytics
@@ -136,7 +137,7 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ## 🧪 Running Automated Tests
 
-Run the complete 45-test suite covering all 31 builders, dynamic QR redirection, password protection, and exports:
+Run the complete 53-test suite covering all 31 builders, dynamic QR redirection, password protection, templates, storage abstractions, and exports:
 
 ```bash
 cd backend

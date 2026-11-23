@@ -1,29 +1,38 @@
 import { useMutation } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
-import { BsFileEarmarkSpreadsheet, BsFileEarmarkText, BsFileEarmarkPdf, BsDownload } from 'react-icons/bs'
+import { BsFileEarmarkSpreadsheet, BsFileEarmarkText, BsFileEarmarkPdf, BsDownload, BsGrid3X3Gap } from 'react-icons/bs'
 import { exportAPI } from '../services/api'
 
 const exportOptions = [
   { format: 'csv', label: 'CSV Report', icon: BsFileEarmarkText, desc: 'Comma-separated values for spreadsheets', color: 'from-green-500 to-green-700' },
   { format: 'excel', label: 'Excel Report', icon: BsFileEarmarkSpreadsheet, desc: 'Formatted Excel spreadsheet (.xlsx)', color: 'from-blue-500 to-blue-700' },
   { format: 'pdf', label: 'PDF Report', icon: BsFileEarmarkPdf, desc: 'Professional PDF report with statistics', color: 'from-red-500 to-red-700' },
+  { format: 'sticker_sheet', label: 'Printable Sticker Sheet', icon: BsGrid3X3Gap, desc: 'A4 PDF sticker sheet (3x7 grid, 21 QR labels)', color: 'from-purple-500 to-purple-700' },
 ]
 
 export default function Export() {
   const exportMutation = useMutation({
     mutationFn: async (format) => {
-      const apiMap = { csv: exportAPI.csv, excel: exportAPI.excel, pdf: exportAPI.pdf }
-      const res = await apiMap[format]()
+      let res
+      let filename = `qr_history_report.${format}`
+      if (format === 'sticker_sheet') {
+        res = await exportAPI.stickerSheet('3x7')
+        filename = 'qr_sticker_sheet.pdf'
+      } else {
+        const apiMap = { csv: exportAPI.csv, excel: exportAPI.excel, pdf: exportAPI.pdf }
+        res = await apiMap[format]()
+        const ext = format === 'excel' ? 'xlsx' : format
+        filename = `qr_history_report.${ext}`
+      }
       const url = window.URL.createObjectURL(new Blob([res.data]))
       const a = document.createElement('a')
       a.href = url
-      const ext = format === 'excel' ? 'xlsx' : format
-      a.download = `qr_history_report.${ext}`
+      a.download = filename
       a.click()
       window.URL.revokeObjectURL(url)
     },
-    onSuccess: () => toast.success('Report exported successfully!'),
+    onSuccess: () => toast.success('Export downloaded successfully!'),
     onError: (err) => toast.error(err.message),
   })
 
@@ -31,10 +40,10 @@ export default function Export() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Export</h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-1">Export your QR history data in various formats</p>
+        <p className="text-gray-500 dark:text-gray-400 mt-1">Export your QR history data and printable formats in real-time</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {exportOptions.map((opt, i) => (
           <motion.div
             key={opt.format}

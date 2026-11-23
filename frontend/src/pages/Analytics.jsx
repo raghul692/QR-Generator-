@@ -158,6 +158,35 @@ export default function Analytics() {
             </div>
           </div>
 
+          {/* Browser & OS Distributions */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="glass-card p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Browser Breakdown</h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={analytics?.browser_stats || []}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip />
+                  <Bar dataKey="value" fill="#6366F1" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="glass-card p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Operating System Breakdown</h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={analytics?.os_stats || []}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip />
+                  <Bar dataKey="value" fill="#8B5CF6" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
           {/* Export stats */}
           <div className="glass-card p-6">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Export Statistics</h3>

@@ -53,6 +53,9 @@
 | Campaign Expiration Datetime | Implemented and tested | Returns 410 Gone when expired |
 | Destination Target URL Editing | Implemented and tested | Target can be updated without reprinting |
 | Dynamic QR Listing & Deletion | Implemented and tested | Full CRUD via `/api/v1/dynamic` |
+| Dynamic QR Management Interface | Implemented and tested | Dedicated UI in `DynamicQR.jsx` with edit modals |
+| Quick Style Templates API & UI | Implemented and tested | 6 built-in presets + CRUD via `/api/v1/templates` |
+| Live Camera Viewfinder Scanner | Implemented and tested | `html5-qrcode` integration in `Scanner.jsx` |
 
 ---
 

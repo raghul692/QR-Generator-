@@ -42,7 +42,7 @@ class UpdateDynamicQRRequest(BaseModel):
 def list_dynamic_qrs(db: Session = Depends(get_db)):
     """List all dynamic QR codes with scan counts and status."""
     records = db.query(DynamicQR).order_by(DynamicQR.created_at.desc()).all()
-    base_url = settings.PUBLIC_REDIRECT_BASE_URL.rstrip("/")
+    base_url = settings.public_redirect_url
     return [
         {
             "id": r.id,
@@ -72,7 +72,7 @@ def create_dynamic_qr(req: CreateDynamicQRRequest, db: Session = Depends(get_db)
         password=req.password,
         expires_at=req.expires_at,
     )
-    base_url = settings.PUBLIC_REDIRECT_BASE_URL.rstrip("/")
+    base_url = settings.public_redirect_url
     return {
         "id": dyn.id,
         "short_code": dyn.short_code,
@@ -109,7 +109,7 @@ def update_dynamic_qr(
             password=req.password,
             expires_at=req.expires_at,
         )
-        base_url = settings.PUBLIC_REDIRECT_BASE_URL.rstrip("/")
+        base_url = settings.public_redirect_url
         return {
             "id": dyn.id,
             "short_code": dyn.short_code,

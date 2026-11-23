@@ -23,6 +23,7 @@ from app.qr_engine.builders import registry
 from app.qr_engine.customization import QRCustomization
 from app.qr_engine.renderer import renderer
 from app.qr_engine.types_meta import get_all_types, get_type_meta
+from app.services.storage_service import storage_service
 from app.utils.logger import logger
 
 
@@ -72,6 +73,15 @@ class QRService:
         """Generate a QR code, optionally persist to history, return response."""
         logger.info(f"Generating QR: type={qr_type}, title={title}")
 
+        # Fallback category_id from data if not passed explicitly at top level
+        if category_id is None and isinstance(data, dict):
+            raw_cat = data.get("category_id")
+            if raw_cat is not None:
+                try:
+                    category_id = int(raw_cat)
+                except (ValueError, TypeError):
+                    pass
+
         # 1. Build encoded data (handle dynamic QR routing if enabled)
         is_dynamic = bool(customization and customization.get("is_dynamic"))
         dyn = None
@@ -91,7 +101,7 @@ class QRService:
                 password=customization.get("password"),
                 expires_at=expires_at,
             )
-            encoded = f"{settings.PUBLIC_REDIRECT_BASE_URL.rstrip('/')}/r/{dyn.short_code}"
+            encoded = f"{settings.public_redirect_url}/r/{dyn.short_code}"
             logger.info(f"Dynamic QR enabled: short_code={dyn.short_code}, redirect_url={encoded}")
         else:
             encoded = registry.build(qr_type, data)
@@ -100,15 +110,19 @@ class QRService:
 
         # 2. Render image
         img = renderer.render_image(encoded, custom)
+        img_bytes = renderer.to_bytes(img, fmt="PNG")
 
-        # 3. Save PNG file
+        # 3. Save PNG file via storage_service (Supabase Storage or local persistent storage)
         filename = f"qr_{qr_type}_{uuid.uuid4().hex[:8]}.png"
-        file_path = settings.generated_qr_path / filename
-        renderer.save_png(img, file_path)
-        logger.debug(f"Saved QR image: {file_path}")
+        stored_path = storage_service.save_asset(
+            file_bytes=img_bytes,
+            filename=filename,
+            content_type="image/png",
+            bucket="qr-assets",
+        )
+        logger.debug(f"Saved QR image via storage_service: {stored_path}")
 
         # 4. Base64 preview
-        img_bytes = renderer.to_bytes(img, fmt="PNG")
         b64 = f"data:image/png;base64,{base64.b64encode(img_bytes).decode('utf-8')}"
 
         # 5. Persist to history
@@ -119,8 +133,8 @@ class QRService:
                 qr_type=qr_type,
                 content=json.dumps(data, ensure_ascii=False),
                 encoded_data=encoded,
-                preview_path=str(file_path),
-                file_path=str(file_path),
+                preview_path=stored_path,
+                file_path=stored_path,
                 category_id=category_id,
                 customization_json=json.dumps(customization or {}, ensure_ascii=False),
                 download_count=0,
@@ -142,7 +156,7 @@ class QRService:
             "content": json.dumps(data, ensure_ascii=False),
             "encoded_data": encoded,
             "preview_base64": b64,
-            "file_path": str(file_path) if save_to_history else None,
+            "file_path": stored_path if save_to_history else None,
             "category_id": category_id,
             "is_dynamic": is_dynamic,
             "dynamic_id": dyn.id if dyn else None,
@@ -163,15 +177,19 @@ class QRService:
         custom = self._build_customization(custom_dict)
 
         img = renderer.render_image(record.encoded_data, custom)
-        filename = f"qr_{record.qr_type}_{record.id}.png"
-        file_path = settings.generated_qr_path / filename
-        renderer.save_png(img, file_path)
-
         img_bytes = renderer.to_bytes(img, fmt="PNG")
+        filename = f"qr_{record.qr_type}_{record.id}.png"
+        stored_path = storage_service.save_asset(
+            file_bytes=img_bytes,
+            filename=filename,
+            content_type="image/png",
+            bucket="qr-assets",
+        )
+
         b64 = f"data:image/png;base64,{base64.b64encode(img_bytes).decode('utf-8')}"
 
-        record.preview_path = str(file_path)
-        record.file_path = str(file_path)
+        record.preview_path = stored_path
+        record.file_path = stored_path
         db.commit()
         db.refresh(record)
 
@@ -183,7 +201,7 @@ class QRService:
             "content": record.content,
             "encoded_data": record.encoded_data,
             "preview_base64": b64,
-            "file_path": str(file_path),
+            "file_path": stored_path,
             "category_id": record.category_id,
         }
 
@@ -227,6 +245,10 @@ class QRService:
         elif fmt == "pdf":
             return self._to_pdf(img, base_name)
         else:  # png
+            if record.file_path:
+                stored_content = storage_service.read_asset(record.file_path, bucket="qr-assets")
+                if stored_content:
+                    return stored_content, f"{base_name}.png", "image/png"
             data = renderer.to_bytes(img, fmt="PNG")
             return data, f"{base_name}.png", "image/png"
 

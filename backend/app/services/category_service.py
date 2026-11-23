@@ -66,8 +66,17 @@ class CategoryService:
         if not c:
             return None
         if name:
-            c.name = name.strip()
-            c.slug = _slugify(name)
+            new_name = name.strip()
+            c.name = new_name
+            new_slug = _slugify(new_name)
+            existing = (
+                db.query(QRCategory)
+                .filter(QRCategory.slug == new_slug, QRCategory.id != category_id)
+                .first()
+            )
+            if existing:
+                new_slug = f"{new_slug}-{category_id}"
+            c.slug = new_slug
         if description is not None:
             c.description = description.strip() if description else None
         if icon is not None:

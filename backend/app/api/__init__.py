@@ -16,6 +16,7 @@ from app.api.history_router import router as history_router
 from app.api.qr_router import router as qr_router
 from app.api.scanner_router import router as scanner_router
 from app.api.settings_router import router as settings_router
+from app.api.template_router import router as template_router
 
 all_routers = [
     qr_router,
@@ -29,6 +30,7 @@ all_routers = [
     settings_router,
     dynamic_router,
     api_key_router,
+    template_router,
 ]
 
 __all__ = ["all_routers"]

@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database.base import Base
 from app.database.session import SessionLocal, engine
-from app.models import BackupLog
+from app.models import ActivityLog, BackupLog
 from app.utils.logger import logger
 
 
@@ -74,7 +74,7 @@ class BackupService:
             details_parts.append(f"Error: {exc}")
             logger.error(f"Backup creation failed: {exc}")
 
-        # Always record in backup_logs
+        # Always record in backup_logs and activity_logs
         log = BackupLog(
             backup_type=backup_type,
             file_path=file_path,
@@ -83,6 +83,12 @@ class BackupService:
             details="; ".join(details_parts),
         )
         db.add(log)
+        activity = ActivityLog(
+            action=f"backup_created_{status}",
+            module="backup",
+            details=f"Type: {backup_type}, Size: {total_size} bytes, File: {file_path}",
+        )
+        db.add(activity)
         db.commit()
         db.refresh(log)
 
@@ -120,6 +126,13 @@ class BackupService:
                     zf.extractall(settings.generated_qr_path)
 
             shutil.rmtree(extract_dir, ignore_errors=True)
+            activity = ActivityLog(
+                action="backup_restored",
+                module="backup",
+                details=f"Restored backup ID {backup_id}",
+            )
+            db.add(activity)
+            db.commit()
             logger.info(f"Successfully restored backup {backup_id}")
             return {"success": True, "message": f"Backup {backup_id} restored successfully"}
         except Exception as exc:

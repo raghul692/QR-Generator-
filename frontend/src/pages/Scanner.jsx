@@ -1,13 +1,75 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
-import { BsCamera, BsUpload, BsCopy, BsBoxArrowUpRight, BsQrCodeScan } from 'react-icons/bs'
+import { BsCamera, BsUpload, BsCopy, BsBoxArrowUpRight, BsQrCodeScan, BsStopCircle } from 'react-icons/bs'
+import { Html5Qrcode } from 'html5-qrcode'
 import { scannerAPI } from '../services/api'
 
 export default function Scanner() {
   const [scanResults, setScanResults] = useState([])
   const [scanning, setScanning] = useState(false)
+  const [cameraActive, setCameraActive] = useState(false)
+  const html5QrCodeRef = useRef(null)
+
+  const classifyText = (text) => {
+    const t = text.trim().toLowerCase()
+    if (t.startsWith('http://') || t.startsWith('https://')) return 'url'
+    if (t.startsWith('mailto:')) return 'email'
+    if (t.startsWith('tel:')) return 'phone'
+    if (t.startsWith('smsto:')) return 'sms'
+    if (t.startsWith('wifi:')) return 'wifi'
+    if (t.startsWith('begin:vcard')) return 'vcard'
+    if (t.startsWith('upi://')) return 'upi'
+    if (t.startsWith('geo:')) return 'geo'
+    return 'text'
+  }
+
+  const startCamera = async () => {
+    try {
+      const qrScanner = new Html5Qrcode('camera-reader')
+      html5QrCodeRef.current = qrScanner
+      await qrScanner.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        (decodedText) => {
+          toast.success('QR Code detected via Camera!')
+          setScanResults((prev) => [
+            { data: decodedText, qr_type: classifyText(decodedText) },
+            ...prev,
+          ])
+          stopCamera()
+        },
+        () => {
+          // Frame decode error - expected while scanning empty frames
+        }
+      )
+      setCameraActive(true)
+    } catch (err) {
+      toast.error('Could not access camera: ' + (err.message || 'Check camera permissions'))
+      setCameraActive(false)
+    }
+  }
+
+  const stopCamera = async () => {
+    if (html5QrCodeRef.current && cameraActive) {
+      try {
+        await html5QrCodeRef.current.stop()
+        html5QrCodeRef.current.clear()
+      } catch (err) {
+        console.warn('Camera stop error:', err)
+      }
+      setCameraActive(false)
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
+        html5QrCodeRef.current.stop().catch(console.error)
+      }
+    }
+  }, [])
 
   const scanMutation = useMutation({
     mutationFn: (file) => scannerAPI.scan(file),
@@ -71,14 +133,44 @@ export default function Scanner() {
           )}
         </div>
 
-        {/* Camera info */}
+        {/* Live Camera Scanner */}
         <div className="glass-card p-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Camera Scanner</h3>
-          <div className="flex flex-col items-center justify-center p-12 text-center">
-            <BsCamera className="text-4xl text-gray-400 mb-3" />
-            <p className="text-gray-600 dark:text-gray-300 font-medium mb-2">Live Camera Scanner</p>
-            <p className="text-sm text-gray-400 mb-4">Use your device camera to scan QR codes in real-time</p>
-            <p className="text-xs text-gray-400">Camera access requires HTTPS or localhost</p>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <BsCamera /> Live Camera Scanner
+            </h3>
+            {cameraActive ? (
+              <button
+                type="button"
+                onClick={stopCamera}
+                className="btn-secondary text-xs flex items-center gap-1.5 text-red-500 border-red-300"
+              >
+                <BsStopCircle /> Stop Camera
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={startCamera}
+                className="btn-primary text-xs flex items-center gap-1.5"
+              >
+                <BsCamera /> Start Camera
+              </button>
+            )}
+          </div>
+
+          <div
+            id="camera-reader"
+            className={`w-full max-w-sm mx-auto overflow-hidden rounded-xl bg-gray-950 ${
+              cameraActive ? 'min-h-[280px]' : 'h-48 flex flex-col items-center justify-center text-center p-6'
+            }`}
+          >
+            {!cameraActive && (
+              <div className="text-gray-400 space-y-2">
+                <BsCamera className="text-4xl mx-auto text-gray-500" />
+                <p className="text-sm font-medium text-gray-300">Camera is idle</p>
+                <p className="text-xs text-gray-500">Click "Start Camera" above to scan live QR codes directly from your device camera.</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

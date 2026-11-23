@@ -19,17 +19,18 @@ This audit details all findings, inventory status, and remediation pathways.
 
 | Page | File Path | Route | Status | Notes / Issues |
 |------|-----------|-------|--------|----------------|
-| **Dashboard** | `frontend/src/pages/Dashboard.jsx` | `/` | Operational | Charts and stats wired to API. Needs dynamic QR scan integration. |
-| **QR Generator** | `frontend/src/pages/Generator.jsx` | `/generator` | Operational | Supports 31 types, live preview, color and style customization. |
-| **QR Scanner** | `frontend/src/pages/Scanner.jsx` | `/scanner` | Operational | Image upload scanning. Backend returns raw type; needs content classification. |
+| **Dashboard** | `frontend/src/pages/Dashboard.jsx` | `/` | Operational | Charts, total scans, and unique visitor metrics wired to API. |
+| **QR Generator** | `frontend/src/pages/Generator.jsx` | `/generator` | Operational | Supports 31 types, live preview, color/style customization, quick templates selector. |
+| **Dynamic QRs** | `frontend/src/pages/DynamicQR.jsx` | `/dynamic` | Operational | Management table, target editing, password/expiry controls, short-code copy, analytics modal. |
+| **QR Scanner** | `frontend/src/pages/Scanner.jsx` | `/scanner` | Operational | Image upload + live camera scanner powered by `html5-qrcode`. |
 | **History** | `frontend/src/pages/History.jsx` | `/history` | Operational | Table with search, type/category filters, favorites, regenerate, printable sticker sheet download. |
-| **Categories** | `frontend/src/pages/Categories.jsx` | `/categories` | Operational | List, create, edit, delete categories. Contained cascade bug in ORM. |
-| **Bulk Generator** | `frontend/src/pages/BulkGenerator.jsx` | `/bulk` | Operational | Upload CSV/Excel, column mapping, background job execution, ZIP download. |
-| **Analytics** | `frontend/src/pages/Analytics.jsx` | `/analytics` | Operational | Generation trends and category charts. Needs scan log & dynamic QR analytics. |
-| **Export** | `frontend/src/pages/Export.jsx` | `/export` | Operational | CSV, Excel, PDF history exports, plus A4 sticker sheet. |
-| **Backup & Restore** | `frontend/src/pages/Backup.jsx` | `/backup` | Partial | Relied on `mysqldump` and MySQL syntax; needs PostgreSQL-compatible dump/restore. |
-| **Settings** | `frontend/src/pages/Settings.jsx` | `/settings` | Operational | UI/QR settings configuration and Developer API key generation/revocation. |
-| **Not Found / 404** | Missing | `*` | Missing | No catch-all 404 page in frontend router. |
+| **Categories** | `frontend/src/pages/Categories.jsx` | `/categories` | Operational | List, create, edit, delete categories. Safe detach on delete without deleting QR records. |
+| **Bulk Generator** | `frontend/src/pages/BulkGenerator.jsx` | `/bulk` | Operational | Upload CSV/Excel, column mapping, background job execution, ZIP download. Sanitized upload limits. |
+| **Analytics** | `frontend/src/pages/Analytics.jsx` | `/analytics` | Operational | Generation trends, category breakdown, device distribution, browser and OS breakdown charts. |
+| **Export** | `frontend/src/pages/Export.jsx` | `/export` | Operational | CSV, Excel, PDF history exports, plus A4 sticker sheet (3x7 & 3x8). |
+| **Backup & Restore** | `frontend/src/pages/Backup.jsx` | `/backup` | Operational | Database snapshot JSON dump/restore with full ActivityLog auditing. |
+| **Settings** | `frontend/src/pages/Settings.jsx` | `/settings` | Operational | UI/QR settings configuration and Developer API key generation/revocation with audit trail. |
+| **Not Found / 404** | `frontend/src/pages/NotFound.jsx` | `*` | Operational | Catch-all 404 error page. |
 
 ---
 
@@ -82,8 +83,10 @@ This audit details all findings, inventory status, and remediation pathways.
 | **Dynamic** | `/api/v1/dynamic` | `/{id}` | PUT | Operational | Update target URL, title, password, expiry. |
 | **API Keys** | `/api/v1/keys` | `/` | GET | Operational | List API keys (prefix, rate limit, created). |
 | **API Keys** | `/api/v1/keys` | `/` | POST | Operational | Create API key (returns secret once). |
-| **API Keys** | `/api/v1/keys` | `/{id}` | DELETE | Operational | Revoke API key. |
-| **API Auth** | Protected routes | `X-API-Key` | Header | Missing | Authentication dependency was not wired into endpoints. |
+| **API Keys** | `/api/v1/keys` | `/{id}` | DELETE | Operational | Revoke API key (soft deactivation with 403 on subsequent use and audit log). |
+| **Templates** | `/api/v1/templates` | `/` | GET, POST | Operational | List presets / create custom design template. |
+| **Templates** | `/api/v1/templates` | `/{id}` | GET, DELETE | Operational | Get single template / delete template (built-in protected). |
+| **API Auth** | Protected routes | `X-API-Key` | Header | Operational | Enforced via `verify_api_key` dependency. |
 
 ---
 
@@ -179,3 +182,41 @@ This audit details all findings, inventory status, and remediation pathways.
 - Phase 6: Update frontend `api.js` to dynamic `VITE_API_BASE_URL`, add 404 page, verify responsive views.
 - Phase 7–11: Add `vercel.json`, `render.yaml`, `docker-compose.yml` for PostgreSQL, write comprehensive documentation.
 - Phase 12–15: Execute end-to-end test suite and produce final verification report.
+
+---
+
+## 8. Second-Pass Audit: Deep Defects Discovered & Remediated
+
+During the second-pass skeptical review, 10 subtle defects and feature omissions were identified and fixed:
+
+1. **Category Assignment Loss in Generator (`category_id` displacement):**
+   - *Issue:* In `frontend/src/pages/Generator.jsx`, `category_id` was placed inside `formData` instead of at the payload root. The backend pydantic model `QRCreateRequest` expected `category_id` at the root, silently nullifying category associations.
+   - *Fix:* Passed `category_id` at the root payload in `Generator.jsx` and added fallback in `qr_router.py` to inspect `data.get("category_id")`.
+2. **Missing Dynamic QR Management Interface:**
+   - *Issue:* Dynamic QRs could be generated, but there was no dedicated UI page or navigation route to view, edit destination URLs, toggle activation, or view per-code analytics.
+   - *Fix:* Created `frontend/src/pages/DynamicQR.jsx`, linked it in `App.jsx` (`/dynamic`), and added a navigation link in `MainLayout.jsx` with full target editing and modal analytics.
+3. **Storage Abstraction Disconnect & Machine-Local Absolute Paths:**
+   - *Issue:* `storage_service.py` was created as dead code and never imported in `qr_service.py`. QR files were stored with Windows machine-local paths (`D:\...`) in PostgreSQL.
+   - *Fix:* Integrated `save_asset()` and `read_asset()` in `qr_service.py`, writing relative storage keys (`qr_images/...`) to PostgreSQL.
+4. **Scan-Time Download Counter Inflation:**
+   - *Issue:* In `dynamic_qr_service.py`, recording a scan incremented `QRHistory.download_count`, conflating scans with physical file exports.
+   - *Fix:* Removed the scan-time increment of `download_count`, keeping analytics metrics strictly distinct.
+5. **Untracked Failed Password Attempts:**
+   - *Issue:* Failed PIN/password attempts on protected dynamic QRs returned 401 but left no audit trail in `ActivityLog` or analytics counters.
+   - *Fix:* Added `ActivityLog` recording with masked IP in `redirect.py` and aggregated `failed_password_attempts` in `analytics_service.py`.
+6. **Hard Deletion of API Keys Defeating 403 Forbidden Requirement:**
+   - *Issue:* `DELETE /api/v1/keys/{id}` executed `db.delete()`. Once deleted, subsequent requests with the key returned `401 Invalid` instead of `403 Revoked`.
+   - *Fix:* Changed revocation to soft deactivation (`is_active = False`) and added an `ActivityLog` audit record.
+7. **Unrestricted Bulk File Upload Vulnerability:**
+   - *Issue:* `POST /api/v1/bulk/upload` lacked file extension checks, file size validation, and filename sanitization against path traversal.
+   - *Fix:* Added extension whitelist (`.csv`, `.xlsx`, `.xls`), 15MB file size limit, and `Path(file.filename).name` sanitization.
+8. **Static Camera Scanner Placeholder:**
+   - *Issue:* `Scanner.jsx` had a non-functional static text placeholder for camera scanning despite `html5-qrcode` being installed.
+   - *Fix:* Implemented live camera viewfinder with start/stop controls, auto-stop on decode, and classification fallback.
+9. **Missing QR Template Presets & API:**
+   - *Issue:* `qr_templates` table existed but had zero rows and no API endpoints.
+   - *Fix:* Added 6 default built-in presets (Classic, Modern Blue, Forest Green, Sunset Vibrant, Charcoal Dark, Monokai Neon), created `/api/v1/templates` router, and added a quick presets bar in `Generator.jsx`.
+10. **MySQL Legacy Configuration in Backend Environment:**
+    - *Issue:* `backend/.env` still pointed to MySQL port 3306 with `root:root` credentials, causing offline Alembic commands to fail unless overridden.
+    - *Fix:* Standardized `.env` and `.env.example` on PostgreSQL port 5432 and verified offline Alembic migration DDL.
+

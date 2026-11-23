@@ -4,13 +4,14 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   BsGrid1X2, BsQrCode, BsClockHistory, BsCamera, BsLayers,
   BsBarChart, BsGear, BsCloudArrowDown, BsFolder, BsMoon, BsSun,
-  BsList, BsX, BsQrCodeScan,
+  BsList, BsX, BsQrCodeScan, BsLightningCharge,
 } from 'react-icons/bs'
 import { useTheme } from '../redux/ThemeContext'
 
 const navItems = [
   { to: '/', icon: BsGrid1X2, label: 'Dashboard' },
   { to: '/generator', icon: BsQrCode, label: 'QR Generator' },
+  { to: '/dynamic', icon: BsLightningCharge, label: 'Dynamic QRs' },
   { to: '/scanner', icon: BsQrCodeScan, label: 'QR Scanner' },
   { to: '/history', icon: BsClockHistory, label: 'History' },
   { to: '/categories', icon: BsFolder, label: 'Categories' },

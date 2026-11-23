@@ -180,12 +180,8 @@ class DynamicQRService:
         )
         db.add(scan)
 
-        # Increment counters
+        # Increment scan counter
         dynamic_qr.scan_count += 1
-        if dynamic_qr.qr_history_id:
-            history = db.query(QRHistory).filter(QRHistory.id == dynamic_qr.qr_history_id).first()
-            if history:
-                history.download_count = (history.download_count or 0) + 1
 
         db.commit()
         db.refresh(scan)

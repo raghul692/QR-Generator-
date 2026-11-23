@@ -6,6 +6,7 @@ expiration handling, and scan analytics recording.
 """
 from __future__ import annotations
 
+import json
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, Header, Request
@@ -13,6 +14,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
+from app.models import ActivityLog
 from app.services.dynamic_qr_service import dynamic_qr_service
 
 router = APIRouter(tags=["Dynamic QR Redirection"])
@@ -124,6 +126,21 @@ def unlock_dynamic_qr(
         return HTMLResponse("Invalid or Expired QR Code", status_code=400)
 
     if not dynamic_qr_service.verify_password(dyn, password):
+        # Log failed password attempt in ActivityLog for real security analytics
+        ip = request.client.host if request.client else None
+        masked_ip = dynamic_qr_service._mask_ip(ip) if ip else None
+        try:
+            activity = ActivityLog(
+                action="failed_password_attempt",
+                module="dynamic_qr",
+                details=json.dumps({"short_code": short_code, "dynamic_id": dyn.id, "title": dyn.title}),
+                ip_address=masked_ip,
+            )
+            db.add(activity)
+            db.commit()
+        except Exception:
+            db.rollback()
+
         return HTMLResponse(
             status_code=401,
             content=f"""

@@ -86,6 +86,17 @@ class Settings(BaseSettings):
         return v  # type: ignore[return-value]
 
     @property
+    def public_redirect_url(self) -> str:
+        """
+        Public base URL for dynamic QR redirect links.
+        Defaults to RENDER_EXTERNAL_URL if deployed on Render and default localhost was kept.
+        """
+        render_url = os.getenv("RENDER_EXTERNAL_URL")
+        if render_url and self.PUBLIC_REDIRECT_BASE_URL in ("http://127.0.0.1:8000", "http://localhost:8000"):
+            return render_url.rstrip("/")
+        return self.PUBLIC_REDIRECT_BASE_URL.rstrip("/")
+
+    @property
     def cors_origins_list(self) -> List[str]:
         """Return combined CORS origins including FRONTEND_ORIGIN if set."""
         origins: List[str] = []

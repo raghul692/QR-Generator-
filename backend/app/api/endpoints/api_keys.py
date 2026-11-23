@@ -6,16 +6,17 @@ Provides API key management endpoints for programmatic integration.
 from __future__ import annotations
 
 import hashlib
+import json
 import secrets
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
-from app.models import APIKey
+from app.models import ActivityLog, APIKey
 from app.utils.logger import logger
 
 router = APIRouter(prefix="/keys", tags=["Developer API Keys"])
@@ -60,6 +61,13 @@ def create_api_key(req: CreateKeyRequest, db: Session = Depends(get_db)):
         rate_limit=req.rate_limit,
     )
     db.add(key_record)
+
+    activity = ActivityLog(
+        action="api_key_created",
+        module="api_keys",
+        details=json.dumps({"name": req.name, "prefix": prefix, "rate_limit": req.rate_limit}),
+    )
+    db.add(activity)
     db.commit()
     db.refresh(key_record)
 
@@ -76,13 +84,29 @@ def create_api_key(req: CreateKeyRequest, db: Session = Depends(get_db)):
 
 
 @router.delete("/{key_id}", response_model=Dict[str, str])
-def revoke_api_key(key_id: int, db: Session = Depends(get_db)):
-    """Revoke / delete an API key."""
+def revoke_api_key(
+    key_id: int,
+    purge: bool = Query(default=False, description="Permanently delete instead of deactivate"),
+    db: Session = Depends(get_db),
+):
+    """Revoke an API key. Deactivates key so subsequent calls fail with 403 Forbidden; logs audit trail."""
     key_record = db.query(APIKey).filter(APIKey.id == key_id).first()
     if not key_record:
         raise HTTPException(status_code=404, detail="API key not found")
 
-    db.delete(key_record)
+    if purge:
+        db.delete(key_record)
+        action_name = "api_key_purged"
+    else:
+        key_record.is_active = False
+        action_name = "api_key_revoked"
+
+    activity = ActivityLog(
+        action=action_name,
+        module="api_keys",
+        details=json.dumps({"key_id": key_id, "name": key_record.name, "prefix": key_record.key_prefix}),
+    )
+    db.add(activity)
     db.commit()
-    logger.info(f"Revoked API key ID {key_id}")
+    logger.info(f"{action_name} API key ID {key_id}")
     return {"message": f"API key {key_id} revoked successfully"}

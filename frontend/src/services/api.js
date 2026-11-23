@@ -83,7 +83,15 @@ export const exportAPI = {
   csv: () => api.get('/export/history/csv', { responseType: 'blob' }),
   excel: () => api.get('/export/history/excel', { responseType: 'blob' }),
   pdf: () => api.get('/export/history/pdf', { responseType: 'blob' }),
-  stickerSheet: () => api.post('/export/sticker-sheet', {}, { responseType: 'blob' }),
+  stickerSheet: (layout = '3x7') => api.post('/export/sticker-sheet', {}, { params: { layout }, responseType: 'blob' }),
+}
+
+// ===== Templates =====
+export const templateAPI = {
+  list: () => api.get('/templates'),
+  get: (id) => api.get(`/templates/${id}`),
+  create: (data) => api.post('/templates', data),
+  delete: (id) => api.delete(`/templates/${id}`),
 }
 
 // ===== Dynamic QR =====

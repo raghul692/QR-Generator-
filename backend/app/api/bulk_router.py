@@ -4,6 +4,7 @@ QRMaster Pro — Bulk QR Generation API Router.
 from __future__ import annotations
 
 import json
+import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
@@ -44,11 +45,24 @@ async def upload_bulk(
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file provided")
 
-    # Save uploaded file
-    upload_path = settings.uploads_path / file.filename
-    with open(upload_path, "wb") as f:
-        contents = await file.read()
-        f.write(contents)
+    # Sanitize filename and validate extension against directory traversal
+    safe_filename = Path(file.filename).name
+    ext = Path(safe_filename).suffix.lower()
+    if ext not in (".csv", ".xlsx", ".xls"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"File extension '{ext}' is not supported for bulk import. Allowed: .csv, .xlsx, .xls",
+        )
+
+    contents = await file.read()
+    if len(contents) == 0:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+    if len(contents) > 15 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File size exceeds maximum allowed limit of 15 MB.")
+
+    # Save uploaded file with unique prefix
+    upload_path = settings.uploads_path / f"bulk_{uuid.uuid4().hex[:8]}_{safe_filename}"
+    upload_path.write_bytes(contents)
 
     # Parse optional JSON params
     mapping = json.loads(column_mapping) if column_mapping else None

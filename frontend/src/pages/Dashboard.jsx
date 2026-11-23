@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import {
   BsQrCode, BsClock, BsDownload, BsFolder, BsLayers, BsStar,
-  BsLightningCharge, BsEye,
+  BsLightningCharge, BsEye, BsPeople,
 } from 'react-icons/bs'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -17,27 +17,27 @@ const statIcons = {
   total_qr: BsQrCode,
   total_dynamic_qr: BsLightningCharge,
   total_scans: BsEye,
+  unique_scans: BsPeople,
   today_qr: BsClock,
   total_downloads: BsDownload,
-  total_categories: BsFolder,
 }
 
 const statLabels = {
   total_qr: 'Total QR Codes',
   total_dynamic_qr: 'Dynamic QRs',
   total_scans: 'Total Scans',
+  unique_scans: 'Unique Scans',
   today_qr: "Today's Created",
   total_downloads: 'Total Downloads',
-  total_categories: 'Categories',
 }
 
 const statColors = {
   total_qr: 'from-primary-500 to-primary-700',
   total_dynamic_qr: 'from-amber-500 to-amber-700',
   total_scans: 'from-emerald-500 to-emerald-700',
+  unique_scans: 'from-teal-500 to-teal-700',
   today_qr: 'from-green-500 to-green-700',
   total_downloads: 'from-blue-500 to-blue-700',
-  total_categories: 'from-purple-500 to-purple-700',
 }
 
 export default function Dashboard() {
@@ -51,7 +51,7 @@ export default function Dashboard() {
     queryFn: () => dashboardAPI.getCharts().then((r) => r.data),
   })
 
-  const statKeys = ['total_qr', 'total_dynamic_qr', 'total_scans', 'today_qr', 'total_downloads', 'total_categories']
+  const statKeys = ['total_qr', 'total_dynamic_qr', 'total_scans', 'unique_scans', 'today_qr', 'total_downloads']
 
   return (
     <div className="space-y-6">

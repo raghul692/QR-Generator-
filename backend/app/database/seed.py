@@ -7,6 +7,7 @@ Run via:  python -m app.database.seed
 """
 from __future__ import annotations
 
+import json
 from typing import List, Dict, Any
 from sqlalchemy.orm import Session
 
@@ -155,6 +156,117 @@ DEFAULT_SETTINGS: List[Dict[str, Any]] = [
 ]
 
 
+# --------------------------------------------------------------------------- #
+#  Default built-in QR design templates
+# --------------------------------------------------------------------------- #
+DEFAULT_TEMPLATES: List[Dict[str, Any]] = [
+    {
+        "name": "Classic Monochrome",
+        "description": "Standard square modules with clean quiet zone",
+        "is_builtin": True,
+        "config_json": json.dumps({
+            "size": 400,
+            "foreground_color": "#000000",
+            "background_color": "#FFFFFF",
+            "qr_style": "square",
+            "margin": 4,
+            "error_correction": "M",
+            "gradient_enabled": False,
+        }),
+    },
+    {
+        "name": "Modern Indigo Dots",
+        "description": "Contemporary circular modules in brand indigo",
+        "is_builtin": True,
+        "config_json": json.dumps({
+            "size": 400,
+            "foreground_color": "#4F46E5",
+            "background_color": "#FFFFFF",
+            "qr_style": "dots",
+            "margin": 4,
+            "error_correction": "H",
+            "gradient_enabled": False,
+        }),
+    },
+    {
+        "name": "Ocean Cyan Gradient",
+        "description": "High-impact linear cyan-to-blue gradient with rounded corners",
+        "is_builtin": True,
+        "config_json": json.dumps({
+            "size": 400,
+            "foreground_color": "#06B6D4",
+            "background_color": "#FFFFFF",
+            "qr_style": "rounded",
+            "margin": 4,
+            "error_correction": "H",
+            "gradient_enabled": True,
+            "gradient_start": "#06B6D4",
+            "gradient_end": "#2563EB",
+        }),
+    },
+    {
+        "name": "Emerald Retail & Pay",
+        "description": "Vibrant emerald green for payment and retail locations",
+        "is_builtin": True,
+        "config_json": json.dumps({
+            "size": 400,
+            "foreground_color": "#059669",
+            "background_color": "#FFFFFF",
+            "qr_style": "square",
+            "margin": 4,
+            "error_correction": "H",
+            "gradient_enabled": False,
+        }),
+    },
+    {
+        "name": "Sunset Vibrant",
+        "description": "Vibrant amber to fuchsia gradient with circular styling",
+        "is_builtin": True,
+        "config_json": json.dumps({
+            "size": 400,
+            "foreground_color": "#F59E0B",
+            "background_color": "#FFFFFF",
+            "qr_style": "circular",
+            "margin": 4,
+            "error_correction": "H",
+            "gradient_enabled": True,
+            "gradient_start": "#F59E0B",
+            "gradient_end": "#D946EF",
+        }),
+    },
+    {
+        "name": "Badge Frame 'SCAN ME'",
+        "description": "High-conversion decorative badge frame with call to action",
+        "is_builtin": True,
+        "config_json": json.dumps({
+            "size": 400,
+            "foreground_color": "#0F172A",
+            "background_color": "#FFFFFF",
+            "qr_style": "rounded",
+            "margin": 4,
+            "error_correction": "H",
+            "frame_style": "badge",
+            "frame_text": "SCAN ME",
+            "frame_color": "#4F46E5",
+        }),
+    },
+]
+
+
+def seed_templates(db: Session) -> int:
+    """Insert missing default design templates idempotently."""
+    inserted = 0
+    for tmpl in DEFAULT_TEMPLATES:
+        exists = db.query(QRTemplate).filter(QRTemplate.name == tmpl["name"]).first()
+        if not exists:
+            t = QRTemplate(**tmpl)
+            db.add(t)
+            inserted += 1
+    if inserted > 0:
+        db.commit()
+    return inserted
+
+
 def seed_categories(db: Session) -> int:
     """Insert missing default categories without modifying existing ones."""
     inserted = 0
@@ -196,7 +308,8 @@ def init_database(create_tables: bool = False) -> None:
     try:
         cats_added = seed_categories(db)
         settings_added = seed_settings(db)
-        logger.info(f"[SEED] Seed complete. Added {cats_added} categories, {settings_added} settings.")
+        templates_added = seed_templates(db)
+        logger.info(f"[SEED] Seed complete. Added {cats_added} categories, {settings_added} settings, {templates_added} templates.")
     except Exception as exc:
         db.rollback()
         logger.error(f"[SEED ERROR] Failed to seed database: {exc}")

@@ -3,9 +3,9 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 import {
-  BsQrCode, BsDownload, BsEye, BsPalette, BsImage, BsCheck2,
+  BsQrCode, BsDownload, BsEye, BsPalette, BsImage, BsCheck2, BsStars,
 } from 'react-icons/bs'
-import { qrAPI, categoryAPI } from '../services/api'
+import { qrAPI, categoryAPI, templateAPI } from '../services/api'
 
 export default function Generator() {
   const [selectedType, setSelectedType] = useState('url')
@@ -40,6 +40,21 @@ export default function Generator() {
     queryKey: ['categories'],
     queryFn: () => categoryAPI.list().then((r) => r.data),
   })
+
+  const { data: templates } = useQuery({
+    queryKey: ['templates'],
+    queryFn: () => templateAPI.list().then((r) => r.data),
+  })
+
+  const handleApplyTemplate = (tmpl) => {
+    if (tmpl?.config) {
+      setCustomization((prev) => ({
+        ...prev,
+        ...tmpl.config,
+      }))
+      toast.success(`Applied style preset: ${tmpl.name}`)
+    }
+  }
 
   const currentType = types?.find((t) => t.key === selectedType)
 
@@ -97,6 +112,7 @@ export default function Generator() {
       title,
       qr_type: selectedType,
       data: formData,
+      category_id: formData.category_id ? Number(formData.category_id) : undefined,
       customization,
       save_to_history: true,
     })
@@ -233,6 +249,29 @@ export default function Generator() {
               </div>
             </div>
           </div>
+
+          {/* Style Presets / Saved Templates */}
+          {templates && templates.length > 0 && (
+            <div className="glass-card p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+                <BsStars className="text-amber-500" /> Style Presets & Saved Templates
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Click any preset to instantly apply professional styling and color palettes.</p>
+              <div className="flex flex-wrap gap-2">
+                {templates.map((tmpl) => (
+                  <button
+                    key={tmpl.id}
+                    type="button"
+                    onClick={() => handleApplyTemplate(tmpl)}
+                    className="px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 text-xs font-medium text-gray-800 dark:text-gray-200 transition-all flex items-center gap-1.5 shadow-sm"
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: tmpl.config?.foreground_color || '#4F46E5' }}></span>
+                    {tmpl.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Customization */}
           <div className="glass-card p-6">
