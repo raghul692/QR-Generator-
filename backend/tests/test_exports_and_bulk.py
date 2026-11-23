@@ -69,6 +69,37 @@ def test_bulk_generation_workflow(client):
     assert len(dl_res.content) > 0
 
 
+def test_bulk_cancellation_and_stream(client, db_session):
+    """Test bulk cancellation endpoint and progress streaming."""
+    from app.models import QRBulkJob
+
+    # 1. Create a job in processing state
+    active_job = QRBulkJob(
+        job_name="In-Progress Queue Job",
+        source_filename="queue_test.csv",
+        total_rows=100,
+        processed_rows=25,
+        status="processing",
+        qr_type="url",
+    )
+    db_session.add(active_job)
+    db_session.commit()
+    db_session.refresh(active_job)
+    job_id = active_job.id
+
+    # 2. Test cancel endpoint
+    cancel_res = client.post(f"/api/v1/bulk/{job_id}/cancel")
+    assert cancel_res.status_code == 200
+    assert cancel_res.json()["status"] == "cancelled"
+
+    # 3. Test SSE stream endpoint receives terminal event
+    stream_res = client.get(f"/api/v1/bulk/{job_id}/stream")
+    assert stream_res.status_code == 200
+    assert "text/event-stream" in stream_res.headers["content-type"]
+    assert b"cancelled" in stream_res.content
+
+
+
 def test_backup_and_restore_workflow(client):
     """Test full backup creation and restoration."""
     create_res = client.post("/api/v1/backup/", json={"backup_type": "db"})

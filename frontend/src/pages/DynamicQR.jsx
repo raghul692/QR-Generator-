@@ -22,16 +22,38 @@ export default function DynamicQR() {
   const [createForm, setCreateForm] = useState({
     title: '',
     target_url: '',
+    ios_target_url: '',
+    android_target_url: '',
     password: '',
     expires_at: '',
+    max_scans: '',
+    utm_source: '',
+    utm_medium: '',
+    utm_campaign: '',
+    geo_routing_json: '',
+    schedule_start_time: '',
+    schedule_end_time: '',
+    schedule_timezone: 'UTC',
+    schedule_fallback_url: '',
   })
 
   const [editForm, setEditForm] = useState({
     title: '',
     target_url: '',
+    ios_target_url: '',
+    android_target_url: '',
     is_active: true,
     password: '',
     expires_at: '',
+    max_scans: '',
+    utm_source: '',
+    utm_medium: '',
+    utm_campaign: '',
+    geo_routing_json: '',
+    schedule_start_time: '',
+    schedule_end_time: '',
+    schedule_timezone: 'UTC',
+    schedule_fallback_url: '',
   })
 
   // Queries
@@ -53,7 +75,18 @@ export default function DynamicQR() {
       toast.success(`Dynamic QR created! Short code: ${res.data.short_code}`)
       queryClient.invalidateQueries({ queryKey: ['dynamic-qrs'] })
       setShowCreateModal(false)
-      setCreateForm({ title: '', target_url: '', password: '', expires_at: '' })
+      setCreateForm({
+        title: '',
+        target_url: '',
+        ios_target_url: '',
+        android_target_url: '',
+        password: '',
+        expires_at: '',
+        max_scans: '',
+        utm_source: '',
+        utm_medium: '',
+        utm_campaign: '',
+      })
     },
     onError: (err) => toast.error(err.message),
   })
@@ -88,9 +121,20 @@ export default function DynamicQR() {
     setEditForm({
       title: item.title,
       target_url: item.target_url,
+      ios_target_url: item.ios_target_url || '',
+      android_target_url: item.android_target_url || '',
       is_active: item.is_active,
       password: '',
       expires_at: item.expires_at ? item.expires_at.slice(0, 16) : '',
+      max_scans: item.max_scans != null ? String(item.max_scans) : '',
+      utm_source: item.utm_source || '',
+      utm_medium: item.utm_medium || '',
+      utm_campaign: item.utm_campaign || '',
+      geo_routing_json: item.geo_routing_json || '',
+      schedule_start_time: item.schedule_start_time || '',
+      schedule_end_time: item.schedule_end_time || '',
+      schedule_timezone: item.schedule_timezone || 'UTC',
+      schedule_fallback_url: item.schedule_fallback_url || '',
     })
   }
 
@@ -103,8 +147,19 @@ export default function DynamicQR() {
     createMutation.mutate({
       title: createForm.title.trim(),
       target_url: createForm.target_url.trim(),
+      ios_target_url: createForm.ios_target_url?.trim() || undefined,
+      android_target_url: createForm.android_target_url?.trim() || undefined,
       password: createForm.password ? createForm.password : undefined,
       expires_at: createForm.expires_at ? new Date(createForm.expires_at).toISOString() : undefined,
+      max_scans: createForm.max_scans ? parseInt(createForm.max_scans, 10) : undefined,
+      utm_source: createForm.utm_source?.trim() || undefined,
+      utm_medium: createForm.utm_medium?.trim() || undefined,
+      utm_campaign: createForm.utm_campaign?.trim() || undefined,
+      geo_routing_json: createForm.geo_routing_json?.trim() || undefined,
+      schedule_start_time: createForm.schedule_start_time || undefined,
+      schedule_end_time: createForm.schedule_end_time || undefined,
+      schedule_timezone: createForm.schedule_timezone?.trim() || undefined,
+      schedule_fallback_url: createForm.schedule_fallback_url?.trim() || undefined,
     })
   }
 
@@ -119,9 +174,20 @@ export default function DynamicQR() {
       data: {
         title: editForm.title.trim(),
         target_url: editForm.target_url.trim(),
+        ios_target_url: editForm.ios_target_url?.trim() || undefined,
+        android_target_url: editForm.android_target_url?.trim() || undefined,
         is_active: editForm.is_active,
         password: editForm.password ? editForm.password : undefined,
         expires_at: editForm.expires_at ? new Date(editForm.expires_at).toISOString() : undefined,
+        max_scans: editForm.max_scans ? parseInt(editForm.max_scans, 10) : undefined,
+        utm_source: editForm.utm_source?.trim() || undefined,
+        utm_medium: editForm.utm_medium?.trim() || undefined,
+        utm_campaign: editForm.utm_campaign?.trim() || undefined,
+        geo_routing_json: editForm.geo_routing_json?.trim() || undefined,
+        schedule_start_time: editForm.schedule_start_time || undefined,
+        schedule_end_time: editForm.schedule_end_time || undefined,
+        schedule_timezone: editForm.schedule_timezone?.trim() || undefined,
+        schedule_fallback_url: editForm.schedule_fallback_url?.trim() || undefined,
       },
     })
   }
@@ -268,11 +334,37 @@ export default function DynamicQR() {
                         <span className="truncate">{item.target_url}</span>
                         <BsBoxArrowUpRight className="text-xs flex-shrink-0" />
                       </a>
+                      {(item.ios_target_url || item.android_target_url) && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {item.ios_target_url && (
+                            <span className="inline-flex items-center text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 px-1.5 py-0.5 rounded font-medium" title={`iOS: ${item.ios_target_url}`}>
+                              🍎 iOS
+                            </span>
+                          )}
+                          {item.android_target_url && (
+                            <span className="inline-flex items-center text-[10px] bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 rounded font-medium" title={`Android: ${item.android_target_url}`}>
+                              🤖 Android
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      {(item.utm_source || item.utm_campaign) && (
+                        <div className="mt-1">
+                          <span className="inline-flex items-center text-[10px] bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.5 rounded font-mono" title={`UTM Source: ${item.utm_source || '-'}, Medium: ${item.utm_medium || '-'}, Campaign: ${item.utm_campaign || '-'}`}>
+                            🎯 {item.utm_campaign || item.utm_source}
+                          </span>
+                        </div>
+                      )}
                     </td>
                     <td className="table-cell">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
-                        {item.scan_count || 0} scans
-                      </span>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 w-fit">
+                          {item.scan_count || 0} {item.max_scans ? `/ ${item.max_scans}` : ''} scans
+                        </span>
+                        {item.max_scans && item.scan_count >= item.max_scans && (
+                          <span className="text-[10px] text-rose-500 font-medium">Max scans reached</span>
+                        )}
+                      </div>
                     </td>
                     <td className="table-cell">
                       {item.is_expired ? (
@@ -380,28 +472,189 @@ export default function DynamicQR() {
                   />
                   <p className="text-xs text-gray-400 mt-1">You can change this URL at any time later without reprinting the QR code.</p>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-lg border border-slate-200 dark:border-slate-700 space-y-3">
+                  <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                    <span>⚡ Smart OS Routing (App Store Directs)</span>
+                    <span className="text-[10px] font-normal text-slate-500">(Optional)</span>
+                  </p>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Access Password (Optional)
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                      🍎 iOS Destination (App Store URL)
                     </label>
                     <input
-                      type="password"
-                      placeholder="PIN / Password"
-                      value={createForm.password}
-                      onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
-                      className="input-field"
+                      type="url"
+                      placeholder="https://apps.apple.com/app/id..."
+                      value={createForm.ios_target_url}
+                      onChange={(e) => setCreateForm({ ...createForm, ios_target_url: e.target.value })}
+                      className="input-field text-xs"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Expiration Date (Optional)
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                      🤖 Android Destination (Google Play URL)
+                    </label>
+                    <input
+                      type="url"
+                      placeholder="https://play.google.com/store/apps/details?id=..."
+                      value={createForm.android_target_url}
+                      onChange={(e) => setCreateForm({ ...createForm, android_target_url: e.target.value })}
+                      className="input-field text-xs"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Max Scans Expiration
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="e.g. 500 (unlimited if empty)"
+                      value={createForm.max_scans}
+                      onChange={(e) => setCreateForm({ ...createForm, max_scans: e.target.value })}
+                      className="input-field text-xs"
+                    />
+                    <p className="text-[10px] text-gray-400 mt-0.5">Deactivates after N scans</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Expiration Date
                     </label>
                     <input
                       type="datetime-local"
                       value={createForm.expires_at}
                       onChange={(e) => setCreateForm({ ...createForm, expires_at: e.target.value })}
-                      className="input-field"
+                      className="input-field text-xs"
+                    />
+                    <p className="text-[10px] text-gray-400 mt-0.5">Cutoff date/time</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      PIN / Password
+                    </label>
+                    <input
+                      type="password"
+                      placeholder="Optional PIN"
+                      value={createForm.password}
+                      onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
+                      className="input-field text-xs"
+                    />
+                    <p className="text-[10px] text-gray-400 mt-0.5">Access protection</p>
+                  </div>
+                </div>
+
+                {/* Campaign UTM Attribution */}
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-lg border border-slate-200 dark:border-slate-700 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                      🎯 Campaign UTM Attribution (Pass-through)
+                    </span>
+                    <span className="text-[10px] text-slate-400">Appended to target on scan</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-[11px] text-gray-500 dark:text-gray-400 mb-0.5">
+                        utm_source
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. print, flyer"
+                        value={createForm.utm_source}
+                        onChange={(e) => setCreateForm({ ...createForm, utm_source: e.target.value })}
+                        className="input-field text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-gray-500 dark:text-gray-400 mb-0.5">
+                        utm_medium
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. qr, packaging"
+                        value={createForm.utm_medium}
+                        onChange={(e) => setCreateForm({ ...createForm, utm_medium: e.target.value })}
+                        className="input-field text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-gray-500 dark:text-gray-400 mb-0.5">
+                        utm_campaign
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. summer_2026"
+                        value={createForm.utm_campaign}
+                        onChange={(e) => setCreateForm({ ...createForm, utm_campaign: e.target.value })}
+                        className="input-field text-xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Geo-Fencing & Time-of-Day Smart Redirection (Phase 4) */}
+                <div className="p-3 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700 space-y-3">
+                  <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                    🌐 Geo-Fencing & Time-of-Day Smart Redirection
+                  </p>
+                  <div>
+                    <label className="block text-[11px] text-gray-500 dark:text-gray-400 mb-0.5">
+                      Geo-Routing JSON Map (Country Code → URL)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder='{"US": "https://us.brand.com", "GB": "https://uk.brand.com", "DEFAULT": "https://brand.com"}'
+                      value={createForm.geo_routing_json}
+                      onChange={(e) => setCreateForm({ ...createForm, geo_routing_json: e.target.value })}
+                      className="input-field text-xs font-mono"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-[11px] text-gray-500 dark:text-gray-400 mb-0.5">
+                        Start Time (HH:MM)
+                      </label>
+                      <input
+                        type="time"
+                        value={createForm.schedule_start_time}
+                        onChange={(e) => setCreateForm({ ...createForm, schedule_start_time: e.target.value })}
+                        className="input-field text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-gray-500 dark:text-gray-400 mb-0.5">
+                        End Time (HH:MM)
+                      </label>
+                      <input
+                        type="time"
+                        value={createForm.schedule_end_time}
+                        onChange={(e) => setCreateForm({ ...createForm, schedule_end_time: e.target.value })}
+                        className="input-field text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-gray-500 dark:text-gray-400 mb-0.5">
+                        Timezone
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="UTC"
+                        value={createForm.schedule_timezone}
+                        onChange={(e) => setCreateForm({ ...createForm, schedule_timezone: e.target.value })}
+                        className="input-field text-xs font-mono"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-gray-500 dark:text-gray-400 mb-0.5">
+                      Outside-Hours Fallback URL
+                    </label>
+                    <input
+                      type="url"
+                      placeholder="https://brand.com/closed-hours"
+                      value={createForm.schedule_fallback_url}
+                      onChange={(e) => setCreateForm({ ...createForm, schedule_fallback_url: e.target.value })}
+                      className="input-field text-xs font-mono"
                     />
                   </div>
                 </div>
@@ -465,6 +718,36 @@ export default function DynamicQR() {
                   />
                   <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">Existing printed QR codes will immediately point to this new destination.</p>
                 </div>
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-lg border border-slate-200 dark:border-slate-700 space-y-3">
+                  <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                    <span>⚡ Smart OS Routing (App Store Directs)</span>
+                    <span className="text-[10px] font-normal text-slate-500">(Optional)</span>
+                  </p>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                      🍎 iOS Destination (App Store URL)
+                    </label>
+                    <input
+                      type="url"
+                      placeholder="https://apps.apple.com/app/id..."
+                      value={editForm.ios_target_url}
+                      onChange={(e) => setEditForm({ ...editForm, ios_target_url: e.target.value })}
+                      className="input-field text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                      🤖 Android Destination (Google Play URL)
+                    </label>
+                    <input
+                      type="url"
+                      placeholder="https://play.google.com/store/apps/details?id=..."
+                      value={editForm.android_target_url}
+                      onChange={(e) => setEditForm({ ...editForm, android_target_url: e.target.value })}
+                      className="input-field text-xs"
+                    />
+                  </div>
+                </div>
                 <div className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -477,28 +760,159 @@ export default function DynamicQR() {
                     Campaign is Active (Uncheck to temporarily pause redirects)
                   </label>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      New Password (Optional)
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Max Scans Expiration
                     </label>
                     <input
-                      type="password"
-                      placeholder="Leave blank to keep unchanged"
-                      value={editForm.password}
-                      onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
-                      className="input-field"
+                      type="number"
+                      min="1"
+                      placeholder="e.g. 500 (unlimited if empty)"
+                      value={editForm.max_scans}
+                      onChange={(e) => setEditForm({ ...editForm, max_scans: e.target.value })}
+                      className="input-field text-xs"
                     />
+                    <p className="text-[10px] text-gray-400 mt-0.5">Deactivates after N scans</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Expiration Date (Optional)
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Expiration Date
                     </label>
                     <input
                       type="datetime-local"
                       value={editForm.expires_at}
                       onChange={(e) => setEditForm({ ...editForm, expires_at: e.target.value })}
-                      className="input-field"
+                      className="input-field text-xs"
+                    />
+                    <p className="text-[10px] text-gray-400 mt-0.5">Cutoff date/time</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      New Password (Optional)
+                    </label>
+                    <input
+                      type="password"
+                      placeholder="Leave blank to keep"
+                      value={editForm.password}
+                      onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
+                      className="input-field text-xs"
+                    />
+                    <p className="text-[10px] text-gray-400 mt-0.5">Access protection</p>
+                  </div>
+                </div>
+
+                {/* Campaign UTM Attribution */}
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-lg border border-slate-200 dark:border-slate-700 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                      🎯 Campaign UTM Attribution (Pass-through)
+                    </span>
+                    <span className="text-[10px] text-slate-400">Appended to target on scan</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-[11px] text-gray-500 dark:text-gray-400 mb-0.5">
+                        utm_source
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. print, flyer"
+                        value={editForm.utm_source}
+                        onChange={(e) => setEditForm({ ...editForm, utm_source: e.target.value })}
+                        className="input-field text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-gray-500 dark:text-gray-400 mb-0.5">
+                        utm_medium
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. qr, packaging"
+                        value={editForm.utm_medium}
+                        onChange={(e) => setEditForm({ ...editForm, utm_medium: e.target.value })}
+                        className="input-field text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-gray-500 dark:text-gray-400 mb-0.5">
+                        utm_campaign
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. summer_2026"
+                        value={editForm.utm_campaign}
+                        onChange={(e) => setEditForm({ ...editForm, utm_campaign: e.target.value })}
+                        className="input-field text-xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Geo-Fencing & Time-of-Day Smart Redirection (Phase 4) */}
+                <div className="p-3 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700 space-y-3">
+                  <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                    🌐 Geo-Fencing & Time-of-Day Smart Redirection
+                  </p>
+                  <div>
+                    <label className="block text-[11px] text-gray-500 dark:text-gray-400 mb-0.5">
+                      Geo-Routing JSON Map (Country Code → URL)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder='{"US": "https://us.brand.com", "GB": "https://uk.brand.com", "DEFAULT": "https://brand.com"}'
+                      value={editForm.geo_routing_json}
+                      onChange={(e) => setEditForm({ ...editForm, geo_routing_json: e.target.value })}
+                      className="input-field text-xs font-mono"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-[11px] text-gray-500 dark:text-gray-400 mb-0.5">
+                        Start Time (HH:MM)
+                      </label>
+                      <input
+                        type="time"
+                        value={editForm.schedule_start_time}
+                        onChange={(e) => setEditForm({ ...editForm, schedule_start_time: e.target.value })}
+                        className="input-field text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-gray-500 dark:text-gray-400 mb-0.5">
+                        End Time (HH:MM)
+                      </label>
+                      <input
+                        type="time"
+                        value={editForm.schedule_end_time}
+                        onChange={(e) => setEditForm({ ...editForm, schedule_end_time: e.target.value })}
+                        className="input-field text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-gray-500 dark:text-gray-400 mb-0.5">
+                        Timezone
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="UTC"
+                        value={editForm.schedule_timezone}
+                        onChange={(e) => setEditForm({ ...editForm, schedule_timezone: e.target.value })}
+                        className="input-field text-xs font-mono"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-gray-500 dark:text-gray-400 mb-0.5">
+                      Outside-Hours Fallback URL
+                    </label>
+                    <input
+                      type="url"
+                      placeholder="https://brand.com/closed-hours"
+                      value={editForm.schedule_fallback_url}
+                      onChange={(e) => setEditForm({ ...editForm, schedule_fallback_url: e.target.value })}
+                      className="input-field text-xs font-mono"
                     />
                   </div>
                 </div>

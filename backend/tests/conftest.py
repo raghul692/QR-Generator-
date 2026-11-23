@@ -37,6 +37,12 @@ TestingSessionLocal = sessionmaker(
     future=True,
 )
 
+# Globally patch session module for background tasks and services
+import app.database.session as session_module
+session_module.SessionLocal = TestingSessionLocal
+session_module.engine = test_engine
+
+
 
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_database():

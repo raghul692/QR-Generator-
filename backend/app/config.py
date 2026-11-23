@@ -55,6 +55,7 @@ class Settings(BaseSettings):
     SUPABASE_URL: Optional[str] = None
     SUPABASE_SERVICE_ROLE_KEY: Optional[str] = None
     SUPABASE_STORAGE_BUCKET: str = "qr-assets"
+    SUPABASE_JWT_SECRET: Optional[str] = None
 
     # ---- CORS & URLs ----
     FRONTEND_ORIGIN: Optional[str] = None

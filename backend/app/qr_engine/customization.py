@@ -44,7 +44,7 @@ class LogoPosition:
 class QRCustomization(BaseModel):
     """Visual customization options for a QR code."""
 
-    size: int = Field(default=400, ge=100, le=2000, description="QR size in pixels")
+    size: int = Field(default=400, ge=120, le=2048, description="QR size in pixels")
     foreground_color: str = Field(default="#000000", description="Foreground (module) color")
     background_color: str = Field(default="#FFFFFF", description="Background color")
     gradient_enabled: bool = Field(default=False, description="Enable gradient foreground")
@@ -64,6 +64,10 @@ class QRCustomization(BaseModel):
     frame_text: str = Field(default="SCAN ME", description="Text on frame")
     frame_color: str = Field(default="#4F46E5", description="Frame background color")
     frame_text_color: str = Field(default="#FFFFFF", description="Frame text color")
+    eye_style: str = Field(default="square", description="Corner eye shape: square, rounded, circle, diamond, leaf")
+    eye_color: Optional[str] = Field(default=None, description="Custom color for 3 corner eyes")
+    pupil_style: str = Field(default="square", description="Inner pupil shape: square, circle, diamond")
+    pupil_color: Optional[str] = Field(default=None, description="Custom color for inner pupils")
 
     @field_validator("qr_style")
     @classmethod

@@ -12,6 +12,19 @@ const api = axios.create({
   timeout: 30000,
 })
 
+// Request interceptor injecting Auth token and Workspace header
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('qrm_auth_token')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  const workspaceId = localStorage.getItem('qrm_current_workspace')
+  if (workspaceId) {
+    config.headers['X-Workspace-Id'] = workspaceId
+  }
+  return config
+})
+
 // Response interceptor for error handling
 api.interceptors.response.use(
   (response) => response,
@@ -76,6 +89,8 @@ export const bulkAPI = {
     timeout: 120000,
   }),
   download: (id) => api.get(`/bulk/${id}/download`, { responseType: 'blob' }),
+  cancel: (id) => api.post(`/bulk/${id}/cancel`),
+  getStreamUrl: (id) => `${API_BASE_URL}/bulk/${id}/stream`,
 }
 
 // ===== Export =====
@@ -101,6 +116,71 @@ export const dynamicAPI = {
   getAnalytics: (id) => api.get(`/dynamic/${id}/analytics`),
   update: (id, data) => api.put(`/dynamic/${id}`, data),
   delete: (id) => api.delete(`/dynamic/${id}`),
+}
+
+// ===== Landing Pages =====
+export const landingPagesAPI = {
+  list: () => api.get('/landing-pages'),
+  get: (id) => api.get(`/landing-pages/${id}`),
+  create: (data) => api.post('/landing-pages', data),
+  update: (id, data) => api.put(`/landing-pages/${id}`, data),
+  delete: (id) => api.delete(`/landing-pages/${id}`),
+  getPublic: (slug) => api.get(`/landing-pages/public/${slug}`),
+}
+
+// ===== Digital Menu =====
+export const menuAPI = {
+  list: () => api.get('/menus'),
+  get: (id) => api.get(`/menus/${id}`),
+  create: (data) => api.post('/menus', data),
+  update: (id, data) => api.put(`/menus/${id}`, data),
+  delete: (id) => api.delete(`/menus/${id}`),
+  getPublic: (id) => api.get(`/menus/public/${id}`),
+}
+
+// ===== vCard Plus =====
+export const vcardAPI = {
+  generate: (data) => api.post('/vcard/generate', data),
+  download: (data) => api.post('/vcard/download', data, { responseType: 'blob' }),
+}
+
+// ===== Workspaces & RBAC =====
+export const workspaceAPI = {
+  list: () => api.get('/workspaces'),
+  get: (id) => api.get(`/workspaces/${id}`),
+  create: (data) => api.post('/workspaces', data),
+  update: (id, data) => api.put(`/workspaces/${id}`, data),
+  delete: (id) => api.delete(`/workspaces/${id}`),
+  listMembers: (id) => api.get(`/workspaces/${id}/members`),
+  addMember: (id, data) => api.post(`/workspaces/${id}/members`, data),
+  updateMemberRole: (id, userId, data) => api.patch(`/workspaces/${id}/members/${userId}`, data),
+  removeMember: (id, userId) => api.delete(`/workspaces/${id}/members/${userId}`),
+}
+
+// ===== Custom Branded Domains =====
+export const domainAPI = {
+  list: () => api.get('/domains'),
+  create: (data) => api.post('/domains', data),
+  verify: (id) => api.post(`/domains/${id}/verify`),
+  delete: (id) => api.delete(`/domains/${id}`),
+}
+
+// ===== Webhooks (Phase 4) =====
+export const webhookAPI = {
+  list: () => api.get('/webhooks'),
+  create: (data) => api.post('/webhooks', data),
+  get: (id) => api.get(`/webhooks/${id}`),
+  delete: (id) => api.delete(`/webhooks/${id}`),
+  test: (id) => api.post(`/webhooks/${id}/test`),
+  getDeliveries: (id, limit = 20) => api.get(`/webhooks/${id}/deliveries`, { params: { limit } }),
+}
+
+// ===== Retention & GDPR =====
+export const retentionAPI = {
+  getSummary: () => api.get('/retention/summary'),
+  purgeScanLogs: (retentionDays = 90) => api.post('/retention/purge-scan-logs', { retention_days: retentionDays }),
+  anonymizeIPs: (days = 30) => api.post('/retention/anonymize-ips', {}, { params: { days } }),
+  purgeWorkspace: (confirmId) => api.post('/retention/purge-workspace', { confirm_workspace_id: confirmId }),
 }
 
 // ===== API Keys =====

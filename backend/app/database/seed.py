@@ -26,6 +26,8 @@ from app.models import (
     DynamicQR,
     ScanLog,
     APIKey,
+    Workspace,
+    WorkspaceMember,
 )
 from app.utils.logger import logger
 
@@ -295,21 +297,49 @@ def seed_settings(db: Session) -> int:
     return inserted
 
 
+def seed_workspaces(db: Session) -> int:
+    """Ensure legacy default workspace exists for backward compatibility."""
+    ws = db.query(Workspace).filter(Workspace.id == "ws_legacy_default").first()
+    if not ws:
+        ws = Workspace(
+            id="ws_legacy_default",
+            name="Default Workspace",
+            slug="default-workspace",
+            owner_id="usr_legacy_default",
+            plan="enterprise",
+            is_active=True,
+        )
+        db.add(ws)
+        member = WorkspaceMember(
+            workspace_id="ws_legacy_default",
+            user_id="usr_legacy_default",
+            email="admin@qrmaster.local",
+            role="owner",
+        )
+        db.add(member)
+        db.commit()
+        return 1
+    return 0
+
+
 def init_database(create_tables: bool = False) -> None:
     """
     Initialize seed data safely.
     create_tables is optional (for local testing/fallback); production uses Alembic migrations.
     """
+    import app.database.session as session_module
+
     if create_tables:
         logger.info("[DB INIT] Ensuring tables exist via metadata...")
-        Base.metadata.create_all(bind=engine)
+        Base.metadata.create_all(bind=session_module.engine)
 
-    db: Session = SessionLocal()
+    db: Session = session_module.SessionLocal()
     try:
+        ws_added = seed_workspaces(db)
         cats_added = seed_categories(db)
         settings_added = seed_settings(db)
         templates_added = seed_templates(db)
-        logger.info(f"[SEED] Seed complete. Added {cats_added} categories, {settings_added} settings, {templates_added} templates.")
+        logger.info(f"[SEED] Seed complete. Added {ws_added} workspaces, {cats_added} categories, {settings_added} settings, {templates_added} templates.")
     except Exception as exc:
         db.rollback()
         logger.error(f"[SEED ERROR] Failed to seed database: {exc}")

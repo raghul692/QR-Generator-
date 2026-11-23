@@ -266,3 +266,115 @@ class QRTypeMeta(BaseModel):
     key: str
     label: str
     fields: List[Dict[str, Any]]
+
+
+# --------------------------------------------------------------------------- #
+#  Landing Pages
+# --------------------------------------------------------------------------- #
+class LandingPageCreate(BaseModel):
+    title: str = Field(..., min_length=1, max_length=255)
+    slug: Optional[str] = Field(None, max_length=100)
+    theme: str = Field(default="default", max_length=50)
+    headline: Optional[str] = Field(None, max_length=255)
+    description: Optional[str] = None
+    button_text: Optional[str] = Field(None, max_length=100)
+    button_url: Optional[str] = Field(None, max_length=2048)
+    social_links_json: Optional[str] = None
+    social_links: Optional[List[Dict[str, Any]]] = None
+    is_published: bool = True
+
+
+class LandingPageUpdate(BaseModel):
+    title: Optional[str] = Field(None, max_length=255)
+    slug: Optional[str] = Field(None, max_length=100)
+    theme: Optional[str] = Field(None, max_length=50)
+    headline: Optional[str] = Field(None, max_length=255)
+    description: Optional[str] = None
+    button_text: Optional[str] = Field(None, max_length=100)
+    button_url: Optional[str] = Field(None, max_length=2048)
+    social_links_json: Optional[str] = None
+    social_links: Optional[List[Dict[str, Any]]] = None
+    is_published: Optional[bool] = None
+
+
+class LandingPageOut(BaseModel):
+    id: int
+    title: str
+    slug: str
+    theme: str
+    headline: Optional[str] = None
+    description: Optional[str] = None
+    button_text: Optional[str] = None
+    button_url: Optional[str] = None
+    social_links_json: Optional[str] = None
+    is_published: bool
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+# --------------------------------------------------------------------------- #
+#  Digital Menus
+# --------------------------------------------------------------------------- #
+class DigitalMenuCreate(BaseModel):
+    title: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = None
+    currency: str = Field(default="USD", max_length=10)
+    sections_json: Optional[str] = None
+    sections: Optional[List[Dict[str, Any]]] = None
+    is_active: bool = True
+
+
+class DigitalMenuUpdate(BaseModel):
+    title: Optional[str] = Field(None, max_length=255)
+    description: Optional[str] = None
+    currency: Optional[str] = Field(None, max_length=10)
+    sections_json: Optional[str] = None
+    sections: Optional[List[Dict[str, Any]]] = None
+    is_active: Optional[bool] = None
+
+
+class DigitalMenuOut(BaseModel):
+    id: int
+    title: str
+    description: Optional[str] = None
+    currency: str
+    sections_json: Optional[str] = None
+    is_active: bool
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+# --------------------------------------------------------------------------- #
+#  vCard
+# --------------------------------------------------------------------------- #
+class VCardGenerateRequest(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    organization: Optional[str] = None
+    title: Optional[str] = None
+    phone: Optional[str] = None
+    work_phone: Optional[str] = None
+    cell_phone: Optional[str] = None
+    email: Optional[str] = None
+    work_email: Optional[str] = None
+    url: Optional[str] = None
+    address: Optional[str] = None
+    street: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    postal_code: Optional[str] = None
+    country: Optional[str] = None
+    note: Optional[str] = None
+    social_links: Optional[Dict[str, str]] = None
+
+
+class VCardGenerateResponse(BaseModel):
+    vcf: str
+    filename: str
+    encoded_data: Optional[str] = None

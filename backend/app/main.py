@@ -14,9 +14,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import all_routers
 from app.api.endpoints.health import router as health_router
 from app.api.endpoints.redirect import router as redirect_router
+from app.api.landing_page_router import public_router as landing_page_public_router
+from app.api.menu_router import public_router as menu_public_router
 from app.config import settings
 from app.database.session import check_db_connection
 from app.database.seed import init_database
+from app.middleware.rate_limit import RateLimitMiddleware
 from app.utils.logger import logger
 
 
@@ -68,12 +71,17 @@ def create_app() -> FastAPI:
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["*"],
     )
+    app.add_middleware(RateLimitMiddleware)
 
     # Health check endpoints (available at root for Render/K8s probes)
     app.include_router(health_router)
 
     # Public dynamic QR redirection endpoint (/r/{short_code})
     app.include_router(redirect_router)
+
+    # Public Phase 2 mobile view endpoints (/p/{slug} and /m/{id})
+    app.include_router(landing_page_public_router)
+    app.include_router(menu_public_router)
 
     # Include all v1 API routers
     for router in all_routers:

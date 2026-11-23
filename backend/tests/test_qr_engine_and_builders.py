@@ -97,3 +97,58 @@ def test_qr_scanner_workflow():
     assert len(results) >= 1
     assert "OfficeNet" in results[0].data
     assert results[0].qr_type == "wifi"
+
+
+def test_custom_eye_and_pupil_rendering():
+    """Verify QR code renders properly with custom eye/pupil shapes and colors."""
+    payload = "https://example.com/custom-eyes"
+    custom = QRCustomization(
+        size=400,
+        error_correction="H",
+        eye_style="circle",
+        eye_color="#4f46e5",
+        pupil_style="diamond",
+        pupil_color="#10b981"
+    )
+    img = renderer.render_image(payload, custom)
+    assert img.size[0] >= 350 and img.size[1] >= 350
+    img_bytes = renderer.to_bytes(img, fmt="PNG")
+    assert len(img_bytes) > 0
+
+
+def test_frame_styles_rendering():
+    """Verify that all frame styles render successfully with custom CTA text."""
+    payload = "https://example.com/frames"
+    for frame in ["simple", "rounded", "banner", "badge"]:
+        custom = QRCustomization(
+            size=400,
+            frame_style=frame,
+            frame_text="SCAN HERE",
+            frame_color="#2563eb"
+        )
+        img = renderer.render_image(payload, custom)
+        assert img is not None
+        assert img.size[0] >= 400
+        assert img.size[1] > 400  # Frame adds bottom CTA area
+
+
+def test_export_formula_sanitization():
+    """Verify CSV/Excel formula injection sanitization in export service."""
+    from app.services.export_service import sanitize_export_cell
+
+    dangerous_inputs = [
+        "=SUM(A1:A10)",
+        "+1+2",
+        "-5+10",
+        "@SUM(B1:B5)",
+        "\tcmd|' /C calc'!A0",
+        "\r=1+1",
+    ]
+    for val in dangerous_inputs:
+        sanitized = sanitize_export_cell(val)
+        assert sanitized.startswith("'"), f"Dangerous input {val} was not escaped with leading single quote"
+
+    safe_inputs = ["Normal Text", "12345", "https://qrmaster.pro", "user@example.com"]
+    for val in safe_inputs:
+        assert sanitize_export_cell(val) == val
+

@@ -120,6 +120,15 @@ class QRRenderer:
         # Convert to RGBA for compositing
         img = img.convert("RGBA")
 
+        # Custom Corner Eyes / Finder Patterns
+        if (
+            customization.eye_color
+            or customization.pupil_color
+            or customization.eye_style != "square"
+            or customization.pupil_style != "square"
+        ):
+            img = self._apply_custom_eyes(img, qr, customization)
+
         # Transparent background
         if customization.transparent_background:
             bg_rgb = _hex_to_rgb(customization.background_color)
@@ -144,6 +153,64 @@ class QRRenderer:
         # Decorative Frame with callout text
         if customization.frame_style and customization.frame_style != "none":
             img = self._add_frame(img, customization)
+
+        return img
+
+    def _apply_custom_eyes(self, img: Image.Image, qr: qrcode.QRCode, c: QRCustomization) -> Image.Image:
+        """Render distinct eye and pupil shapes/colors on the 3 corner finder patterns."""
+        box_size = 10
+        border = c.margin
+        mod_count = qr.modules_count
+        eye_color = _hex_to_rgb(c.eye_color or c.foreground_color) + (255,)
+        pupil_color = _hex_to_rgb(c.pupil_color or c.eye_color or c.foreground_color) + (255,)
+        bg_color = (255, 255, 255, 0) if c.transparent_background else _hex_to_rgb(c.background_color) + (255,)
+
+        corners = [
+            (border, border),  # Top-Left
+            (border + mod_count - 7, border),  # Top-Right
+            (border, border + mod_count - 7),  # Bottom-Left
+        ]
+
+        draw = ImageDraw.Draw(img)
+        for col, row in corners:
+            x0 = col * box_size
+            y0 = row * box_size
+            x1 = x0 + 7 * box_size
+            y1 = y0 + 7 * box_size
+
+            # 1. Clear existing 7x7 eye area to background
+            draw.rectangle([x0, y0, x1, y1], fill=bg_color)
+
+            # 2. Draw outer 7x7 eye frame
+            if c.eye_style == "circle":
+                draw.ellipse([x0, y0, x1, y1], fill=eye_color)
+                draw.ellipse([x0 + box_size, y0 + box_size, x1 - box_size, y1 - box_size], fill=bg_color)
+            elif c.eye_style == "rounded":
+                draw.rounded_rectangle([x0, y0, x1, y1], radius=box_size * 2, fill=eye_color)
+                draw.rounded_rectangle([x0 + box_size, y0 + box_size, x1 - box_size, y1 - box_size], radius=box_size, fill=bg_color)
+            elif c.eye_style == "diamond":
+                mid_x, mid_y = (x0 + x1) / 2, (y0 + y1) / 2
+                draw.polygon([(mid_x, y0), (x1, mid_y), (mid_x, y1), (x0, mid_y)], fill=eye_color)
+                draw.polygon([(mid_x, y0 + box_size), (x1 - box_size, mid_y), (mid_x, y1 - box_size), (x0 + box_size, mid_y)], fill=bg_color)
+            else:  # Square or default
+                draw.rectangle([x0, y0, x1, y1], fill=eye_color)
+                draw.rectangle([x0 + box_size, y0 + box_size, x1 - box_size, y1 - box_size], fill=bg_color)
+
+            # 3. Draw inner 3x3 pupil
+            px0 = x0 + 2 * box_size
+            py0 = y0 + 2 * box_size
+            px1 = x1 - 2 * box_size
+            py1 = y1 - 2 * box_size
+
+            if c.pupil_style == "circle":
+                draw.ellipse([px0, py0, px1, py1], fill=pupil_color)
+            elif c.pupil_style == "rounded":
+                draw.rounded_rectangle([px0, py0, px1, py1], radius=box_size, fill=pupil_color)
+            elif c.pupil_style == "diamond":
+                pmid_x, pmid_y = (px0 + px1) / 2, (py0 + py1) / 2
+                draw.polygon([(pmid_x, py0), (px1, pmid_y), (pmid_x, py1), (px0, pmid_y)], fill=pupil_color)
+            else:  # Square
+                draw.rectangle([px0, py0, px1, py1], fill=pupil_color)
 
         return img
 

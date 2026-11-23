@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
-import { BsGear, BsSave, BsPalette, BsQrCode, BsCloud, BsGlobe } from 'react-icons/bs'
-import { apiKeyAPI, settingsAPI } from '../services/api'
+import { BsGear, BsSave, BsPalette, BsQrCode, BsCloud, BsGlobe, BsShieldLock, BsClockHistory, BsCheckCircleFill } from 'react-icons/bs'
+import { apiKeyAPI, settingsAPI, retentionAPI } from '../services/api'
 import { BsKey, BsPlusLg, BsTrash } from 'react-icons/bs'
-import { useTheme } from '../redux/ThemeContext'
+import { useTheme } from '../context/ThemeContext'
 
 export default function Settings() {
   const queryClient = useQueryClient()
@@ -13,6 +13,39 @@ export default function Settings() {
   const [localSettings, setLocalSettings] = useState({})
   const [newKeyName, setNewKeyName] = useState('')
   const [generatedKey, setGeneratedKey] = useState(null)
+
+  const [retentionDays, setRetentionDays] = useState(90)
+  const [purging, setPurging] = useState(false)
+
+  const { data: retentionSummary, refetch: refetchRetention } = useQuery({
+    queryKey: ['retention-summary'],
+    queryFn: () => retentionAPI.getSummary().then((r) => r.data),
+  })
+
+  const handlePurgeLogs = async () => {
+    if (!confirm(`Purge all scan logs older than ${retentionDays} days? This cannot be undone.`)) return
+    setPurging(true)
+    try {
+      const res = await retentionAPI.purgeScanLogs(retentionDays)
+      toast.success(`Purged ${res.data.deleted_count} scan logs older than ${retentionDays} days`)
+      refetchRetention()
+    } catch (err) {
+      toast.error(err.message || 'Failed to purge scan logs')
+    } finally {
+      setPurging(false)
+    }
+  }
+
+  const handleAnonymizeIPs = async () => {
+    if (!confirm('Anonymize IP addresses older than 30 days for GDPR compliance?')) return
+    try {
+      const res = await retentionAPI.anonymizeIPs(30)
+      toast.success(`Anonymized ${res.data.anonymized_count} IP addresses`)
+      refetchRetention()
+    } catch (err) {
+      toast.error(err.message || 'Failed to anonymize IPs')
+    }
+  }
 
   const { data: apiKeys } = useQuery({
     queryKey: ['api-keys'],
@@ -198,6 +231,87 @@ export default function Settings() {
             </div>
           </motion.div>
         ))}
+
+        {/* Enterprise Data Retention & GDPR Panel */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-6 lg:col-span-2">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+            <BsShieldLock className="text-primary-600" /> Enterprise Data Retention & GDPR Governance
+          </h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+            Configure automated retention policies for scan logs and enforce GDPR Article 17 ("Right to Erasure") compliance.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+              <p className="text-xs text-gray-400">Total Scan Records</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                {retentionSummary?.total_scan_logs?.toLocaleString() || 0}
+              </p>
+            </div>
+            <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+              <p className="text-xs text-gray-400">Records &gt; 90 Days</p>
+              <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">
+                {retentionSummary?.expired_scan_logs_90d?.toLocaleString() || 0}
+              </p>
+            </div>
+            <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+              <p className="text-xs text-gray-400">Oldest Scan Log</p>
+              <p className="text-sm font-semibold text-gray-900 dark:text-white mt-2 truncate">
+                {retentionSummary?.oldest_scan_at ? retentionSummary.oldest_scan_at.split('T')[0] : 'None recorded'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/30 mb-4">
+            <div>
+              <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                Scan Log Retention Window
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                Automatically purge analytics events older than the designated threshold.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              <select
+                value={retentionDays}
+                onChange={(e) => setRetentionDays(Number(e.target.value))}
+                className="input-field py-1.5 text-sm"
+              >
+                <option value={30}>30 Days (Strict)</option>
+                <option value={60}>60 Days</option>
+                <option value={90}>90 Days (Enterprise Standard)</option>
+                <option value={180}>180 Days</option>
+                <option value={365}>365 Days (Annual)</option>
+              </select>
+              <button
+                type="button"
+                onClick={handlePurgeLogs}
+                disabled={purging}
+                className="btn-secondary text-xs px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 border-red-200 dark:border-red-800 whitespace-nowrap"
+              >
+                {purging ? 'Purging...' : 'Run Purge Now'}
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/30">
+            <div>
+              <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                GDPR IP Address Anonymization
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                Zero-out or truncate stored client IP addresses older than 30 days.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleAnonymizeIPs}
+              className="btn-secondary text-xs px-3.5 py-2 whitespace-nowrap"
+            >
+              Anonymize Stale IPs
+            </button>
+          </div>
+        </motion.div>
 
         {/* Developer API Keys Panel */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-6 lg:col-span-2">

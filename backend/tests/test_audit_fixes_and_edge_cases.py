@@ -248,3 +248,82 @@ def test_generator_category_assignment_from_data_and_top_level(client, db_sessio
     qr2_id = res2.json()["id"]
     h2 = db_session.query(QRHistory).filter(QRHistory.id == qr2_id).first()
     assert h2.category_id == cat_id
+
+
+def test_gdpr_ip_masking():
+    """Verify IPv4 (/24 zeroed) and IPv6 (host masked) anonymization."""
+    # IPv4 standard
+    assert dynamic_qr_service._mask_ip("192.168.1.150") == "192.168.1.0"
+    assert dynamic_qr_service._mask_ip("10.0.5.42") == "10.0.5.0"
+
+    # IPv6 standard
+    assert dynamic_qr_service._mask_ip("2001:0db8:85a3:0000:0000:8a2e:0370:7334") == "2001:0db8:85a3::0"
+
+    # Empty / fallback
+    assert dynamic_qr_service._mask_ip("") == "0.0.0.0"
+
+
+def test_qr_size_dos_bounds():
+    """Verify QRCustomization enforces lower (120) and upper (2048) pixel size bounds."""
+    from pydantic import ValidationError
+    from app.qr_engine.customization import QRCustomization
+
+    # Valid within bounds
+    c_valid = QRCustomization(size=500)
+    assert c_valid.size == 500
+
+    # Below 120 -> ValidationError
+    with pytest.raises(ValidationError):
+        QRCustomization(size=50)
+
+    # Above 2048 -> ValidationError (DoS prevention)
+    with pytest.raises(ValidationError):
+        QRCustomization(size=50000)
+
+
+def test_rate_limiter_sliding_window():
+    """Verify rate limiter allows up to limit and blocks subsequent requests."""
+    from app.middleware.rate_limit import InMemoryRateLimiter
+
+    limiter = InMemoryRateLimiter()
+    ip = "192.0.2.1"
+    bucket = "test_bucket"
+
+    # Allow 3 requests
+    assert limiter.is_allowed(ip, bucket, max_requests=3, window_seconds=10)[0] is True
+    assert limiter.is_allowed(ip, bucket, max_requests=3, window_seconds=10)[0] is True
+    assert limiter.is_allowed(ip, bucket, max_requests=3, window_seconds=10)[0] is True
+
+    # 4th request must be blocked
+    allowed, retry_after = limiter.is_allowed(ip, bucket, max_requests=3, window_seconds=10)
+    assert allowed is False
+    assert retry_after > 0
+
+
+def test_storage_service_file_validation_and_lifecycle():
+    """Verify storage_service file size, extension validation, and deletion."""
+    from app.services.storage_service import storage_service, ALLOWED_IMAGE_EXTENSIONS
+
+    # 1. Allowed extension passes
+    storage_service.validate_file("logo.png", 1024, allowed_extensions=ALLOWED_IMAGE_EXTENSIONS)
+
+    # 2. Disallowed extension raises ValueError
+    with pytest.raises(ValueError, match="not permitted"):
+        storage_service.validate_file("malicious.exe", 1024, allowed_extensions=ALLOWED_IMAGE_EXTENSIONS)
+
+    # 3. Oversized file raises ValueError
+    with pytest.raises(ValueError, match="exceeds limit"):
+        storage_service.validate_file("huge.png", 20 * 1024 * 1024, max_bytes=15 * 1024 * 1024)
+
+    # 4. Save and delete local asset
+    dummy_bytes = b"QR_TEST_BYTES"
+    stored_key = storage_service.save_asset(dummy_bytes, "unit_test_asset.png")
+    assert stored_key is not None
+    read_bytes = storage_service.read_asset(stored_key)
+    assert read_bytes == dummy_bytes
+
+    deleted = storage_service.delete_asset(stored_key)
+    assert deleted is True
+    assert storage_service.read_asset(stored_key) is None
+
+

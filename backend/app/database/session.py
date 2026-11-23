@@ -31,8 +31,13 @@ def _create_engine_instance() -> Engine:
             future=True,
         )
 
+    if ":6543" in url or "pooler.supabase.com" in url:
+        # Supabase Supavisor transaction pooler optimizations
+        connect_args["options"] = "-c search_path=public"
+
     return create_engine(
         url,
+        connect_args=connect_args,
         pool_pre_ping=settings.DB_POOL_PRE_PING,
         pool_recycle=settings.DB_POOL_RECYCLE,
         pool_size=settings.DB_POOL_SIZE,

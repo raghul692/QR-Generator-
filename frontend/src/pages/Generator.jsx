@@ -4,8 +4,10 @@ import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 import {
   BsQrCode, BsDownload, BsEye, BsPalette, BsImage, BsCheck2, BsStars,
+  BsShieldCheck, BsExclamationTriangle, BsSpeedometer2,
 } from 'react-icons/bs'
 import { qrAPI, categoryAPI, templateAPI } from '../services/api'
+import { getContrastRatio, evaluateScannability } from '../utils/scannability'
 
 export default function Generator() {
   const [selectedType, setSelectedType] = useState('url')
@@ -45,6 +47,13 @@ export default function Generator() {
     queryKey: ['templates'],
     queryFn: () => templateAPI.list().then((r) => r.data),
   })
+
+  // Pre-flight scannability computation
+  const fgColor = customization.gradient_enabled ? customization.gradient_start : customization.foreground_color
+  const bgColor = customization.transparent_background ? '#FFFFFF' : customization.background_color
+  const contrastRatio = getContrastRatio(fgColor, bgColor)
+  const scannability = evaluateScannability(contrastRatio)
+  const hasLogoWarning = customization.logo_url && ['L', 'M'].includes(customization.error_correction)
 
   const handleApplyTemplate = (tmpl) => {
     if (tmpl?.config) {
@@ -320,6 +329,58 @@ export default function Generator() {
                     onChange={(e) => handleCustomChange('background_color', e.target.value)}
                     className="w-full h-10 rounded-lg cursor-pointer" />
                 </div>
+                <div className="col-span-full p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
+                  <p className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                    <span>👁️ Corner Eyes & Pupil Studio</span>
+                    <span className="text-[10px] font-normal text-slate-500">(Independent Styling)</span>
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Eye Frame Shape</label>
+                      <select
+                        value={customization.eye_style || 'square'}
+                        onChange={(e) => handleCustomChange('eye_style', e.target.value)}
+                        className="input-field text-xs py-1.5"
+                      >
+                        <option value="square">Square</option>
+                        <option value="rounded">Rounded</option>
+                        <option value="circle">Circle</option>
+                        <option value="diamond">Diamond</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Eye Frame Color</label>
+                      <input
+                        type="color"
+                        value={customization.eye_color || customization.foreground_color || '#000000'}
+                        onChange={(e) => handleCustomChange('eye_color', e.target.value)}
+                        className="w-full h-8 rounded cursor-pointer"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Inner Pupil Shape</label>
+                      <select
+                        value={customization.pupil_style || 'square'}
+                        onChange={(e) => handleCustomChange('pupil_style', e.target.value)}
+                        className="input-field text-xs py-1.5"
+                      >
+                        <option value="square">Square</option>
+                        <option value="circle">Circle</option>
+                        <option value="rounded">Rounded</option>
+                        <option value="diamond">Diamond</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Inner Pupil Color</label>
+                      <input
+                        type="color"
+                        value={customization.pupil_color || customization.eye_color || customization.foreground_color || '#000000'}
+                        onChange={(e) => handleCustomChange('pupil_color', e.target.value)}
+                        className="w-full h-8 rounded cursor-pointer"
+                      />
+                    </div>
+                  </div>
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">QR Style</label>
                   <select value={customization.qr_style}
@@ -472,6 +533,36 @@ export default function Generator() {
             {previewMutation.isPending && (
               <p className="text-center text-sm text-gray-400 mb-4">Generating preview...</p>
             )}
+
+            {/* Scannability Pre-Flight Diagnostics Gauge */}
+            <div className={`p-3.5 rounded-xl border mb-4 text-xs space-y-2 backdrop-blur-sm transition-colors ${scannability.className}`}>
+              <div className="flex items-center justify-between font-semibold">
+                <span className="flex items-center gap-1.5">
+                  <BsSpeedometer2 className="text-sm" /> Pre-Flight Scannability
+                </span>
+                <span className="font-bold">{contrastRatio}:1 Contrast</span>
+              </div>
+              <div className="w-full bg-black/10 dark:bg-white/10 h-2 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-300 ${
+                    scannability.status === 'optimal' ? 'bg-emerald-500' :
+                    scannability.status === 'good' ? 'bg-indigo-500' :
+                    scannability.status === 'caution' ? 'bg-amber-500' : 'bg-rose-500'
+                  }`}
+                  style={{ width: `${scannability.score}%` }}
+                ></div>
+              </div>
+              <div className="flex items-center justify-between text-[11px] opacity-90 font-medium">
+                <span>{scannability.label}</span>
+                <span>EC: {customization.error_correction} (30%)</span>
+              </div>
+              {hasLogoWarning && (
+                <p className="text-[10px] text-amber-800 dark:text-amber-300 pt-1 flex items-center gap-1 border-t border-amber-200/50 dark:border-amber-800/50">
+                  <BsExclamationTriangle /> Center logo detected: recommend Error Correction 'H' for optimal redundancy.
+                </p>
+              )}
+            </div>
+
             <button
               onClick={handleGenerate}
               disabled={generateMutation.isPending}

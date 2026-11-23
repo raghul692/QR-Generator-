@@ -28,6 +28,19 @@ class CreateDynamicQRRequest(BaseModel):
     qr_history_id: Optional[int] = None
     password: Optional[str] = None
     expires_at: Optional[datetime] = None
+    ios_target_url: Optional[str] = None
+    android_target_url: Optional[str] = None
+    max_scans: Optional[int] = None
+    utm_source: Optional[str] = None
+    utm_medium: Optional[str] = None
+    utm_campaign: Optional[str] = None
+    meta_pixel_id: Optional[str] = None
+    google_tag_id: Optional[str] = None
+    geo_routing_json: Optional[str] = None
+    schedule_start_time: Optional[str] = None
+    schedule_end_time: Optional[str] = None
+    schedule_timezone: Optional[str] = None
+    schedule_fallback_url: Optional[str] = None
 
 
 class UpdateDynamicQRRequest(BaseModel):
@@ -36,6 +49,19 @@ class UpdateDynamicQRRequest(BaseModel):
     is_active: Optional[bool] = None
     password: Optional[str] = None
     expires_at: Optional[datetime] = None
+    ios_target_url: Optional[str] = None
+    android_target_url: Optional[str] = None
+    max_scans: Optional[int] = None
+    utm_source: Optional[str] = None
+    utm_medium: Optional[str] = None
+    utm_campaign: Optional[str] = None
+    meta_pixel_id: Optional[str] = None
+    google_tag_id: Optional[str] = None
+    geo_routing_json: Optional[str] = None
+    schedule_start_time: Optional[str] = None
+    schedule_end_time: Optional[str] = None
+    schedule_timezone: Optional[str] = None
+    schedule_fallback_url: Optional[str] = None
 
 
 @router.get("", response_model=List[Dict[str, Any]])
@@ -49,8 +75,21 @@ def list_dynamic_qrs(db: Session = Depends(get_db)):
             "short_code": r.short_code,
             "title": r.title,
             "target_url": r.target_url,
+            "ios_target_url": r.ios_target_url,
+            "android_target_url": r.android_target_url,
             "redirect_url": f"{base_url}/r/{r.short_code}",
             "scan_count": r.scan_count,
+            "max_scans": r.max_scans,
+            "utm_source": r.utm_source,
+            "utm_medium": r.utm_medium,
+            "utm_campaign": r.utm_campaign,
+            "meta_pixel_id": r.meta_pixel_id,
+            "google_tag_id": r.google_tag_id,
+            "geo_routing_json": r.geo_routing_json,
+            "schedule_start_time": r.schedule_start_time,
+            "schedule_end_time": r.schedule_end_time,
+            "schedule_timezone": r.schedule_timezone,
+            "schedule_fallback_url": r.schedule_fallback_url,
             "is_active": r.is_active,
             "is_expired": dynamic_qr_service.is_expired(r),
             "has_password": bool(r.password_hash),
@@ -71,6 +110,19 @@ def create_dynamic_qr(req: CreateDynamicQRRequest, db: Session = Depends(get_db)
         qr_history_id=req.qr_history_id,
         password=req.password,
         expires_at=req.expires_at,
+        ios_target_url=req.ios_target_url,
+        android_target_url=req.android_target_url,
+        max_scans=req.max_scans,
+        utm_source=req.utm_source,
+        utm_medium=req.utm_medium,
+        utm_campaign=req.utm_campaign,
+        meta_pixel_id=req.meta_pixel_id,
+        google_tag_id=req.google_tag_id,
+        geo_routing_json=req.geo_routing_json,
+        schedule_start_time=req.schedule_start_time,
+        schedule_end_time=req.schedule_end_time,
+        schedule_timezone=req.schedule_timezone,
+        schedule_fallback_url=req.schedule_fallback_url,
     )
     base_url = settings.public_redirect_url
     return {
@@ -78,6 +130,19 @@ def create_dynamic_qr(req: CreateDynamicQRRequest, db: Session = Depends(get_db)
         "short_code": dyn.short_code,
         "redirect_url": f"{base_url}/r/{dyn.short_code}",
         "target_url": dyn.target_url,
+        "ios_target_url": dyn.ios_target_url,
+        "android_target_url": dyn.android_target_url,
+        "max_scans": dyn.max_scans,
+        "utm_source": dyn.utm_source,
+        "utm_medium": dyn.utm_medium,
+        "utm_campaign": dyn.utm_campaign,
+        "meta_pixel_id": dyn.meta_pixel_id,
+        "google_tag_id": dyn.google_tag_id,
+        "geo_routing_json": dyn.geo_routing_json,
+        "schedule_start_time": dyn.schedule_start_time,
+        "schedule_end_time": dyn.schedule_end_time,
+        "schedule_timezone": dyn.schedule_timezone,
+        "schedule_fallback_url": dyn.schedule_fallback_url,
         "title": dyn.title,
         "is_active": dyn.is_active,
         "has_password": bool(dyn.password_hash),
@@ -98,7 +163,7 @@ def get_dynamic_analytics(dynamic_id: int, db: Session = Depends(get_db)):
 def update_dynamic_qr(
     dynamic_id: int, req: UpdateDynamicQRRequest, db: Session = Depends(get_db)
 ):
-    """Update destination URL, title, password, or expiration of a dynamic QR."""
+    """Update destination URL, title, password, attribution, limits, or expiration of a dynamic QR."""
     try:
         dyn = dynamic_qr_service.update_dynamic_qr(
             db=db,
@@ -108,12 +173,38 @@ def update_dynamic_qr(
             is_active=req.is_active,
             password=req.password,
             expires_at=req.expires_at,
+            ios_target_url=req.ios_target_url,
+            android_target_url=req.android_target_url,
+            max_scans=req.max_scans,
+            utm_source=req.utm_source,
+            utm_medium=req.utm_medium,
+            utm_campaign=req.utm_campaign,
+            meta_pixel_id=req.meta_pixel_id,
+            google_tag_id=req.google_tag_id,
+            geo_routing_json=req.geo_routing_json,
+            schedule_start_time=req.schedule_start_time,
+            schedule_end_time=req.schedule_end_time,
+            schedule_timezone=req.schedule_timezone,
+            schedule_fallback_url=req.schedule_fallback_url,
         )
         base_url = settings.public_redirect_url
         return {
             "id": dyn.id,
             "short_code": dyn.short_code,
             "target_url": dyn.target_url,
+            "ios_target_url": dyn.ios_target_url,
+            "android_target_url": dyn.android_target_url,
+            "max_scans": dyn.max_scans,
+            "utm_source": dyn.utm_source,
+            "utm_medium": dyn.utm_medium,
+            "utm_campaign": dyn.utm_campaign,
+            "meta_pixel_id": dyn.meta_pixel_id,
+            "google_tag_id": dyn.google_tag_id,
+            "geo_routing_json": dyn.geo_routing_json,
+            "schedule_start_time": dyn.schedule_start_time,
+            "schedule_end_time": dyn.schedule_end_time,
+            "schedule_timezone": dyn.schedule_timezone,
+            "schedule_fallback_url": dyn.schedule_fallback_url,
             "redirect_url": f"{base_url}/r/{dyn.short_code}",
             "title": dyn.title,
             "is_active": dyn.is_active,

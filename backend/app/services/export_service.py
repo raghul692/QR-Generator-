@@ -20,11 +20,18 @@ from app.models import QRExport, QRHistory
 from app.utils.logger import logger
 
 
+def sanitize_export_cell(val: Any) -> Any:
+    """Sanitize export strings against spreadsheet formula injection (CWE-1236)."""
+    if isinstance(val, str) and val.startswith(('=', '+', '-', '@', '\t', '\r')):
+        return f"'{val}"
+    return val
+
+
 class ExportService:
     """Service for exporting QR data and reports."""
 
     def export_history_csv(self, db: Session) -> Tuple[bytes, str]:
-        """Export all QR history as CSV."""
+        """Export all QR history as CSV with formula injection defense."""
         import pandas as pd
 
         records = db.query(QRHistory).order_by(QRHistory.created_at.desc()).all()
@@ -32,9 +39,9 @@ class ExportService:
         for r in records:
             data.append({
                 "ID": r.id,
-                "Title": r.title,
+                "Title": sanitize_export_cell(r.title),
                 "Type": r.qr_type,
-                "Content": r.content[:200] if r.content else "",
+                "Content": sanitize_export_cell(r.content[:200] if r.content else ""),
                 "Downloads": r.download_count,
                 "Favorite": r.is_favorite,
                 "Created At": r.created_at.isoformat() if r.created_at else "",
@@ -46,7 +53,7 @@ class ExportService:
         return buf.getvalue(), "qr_history_report.csv"
 
     def export_history_excel(self, db: Session) -> Tuple[bytes, str]:
-        """Export all QR history as Excel."""
+        """Export all QR history as Excel with formula injection defense."""
         import pandas as pd
 
         records = db.query(QRHistory).order_by(QRHistory.created_at.desc()).all()
@@ -54,9 +61,9 @@ class ExportService:
         for r in records:
             data.append({
                 "ID": r.id,
-                "Title": r.title,
+                "Title": sanitize_export_cell(r.title),
                 "Type": r.qr_type,
-                "Content": r.content[:200] if r.content else "",
+                "Content": sanitize_export_cell(r.content[:200] if r.content else ""),
                 "Downloads": r.download_count,
                 "Favorite": r.is_favorite,
                 "Created At": r.created_at.isoformat() if r.created_at else "",

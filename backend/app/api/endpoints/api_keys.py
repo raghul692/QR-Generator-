@@ -25,6 +25,11 @@ router = APIRouter(prefix="/keys", tags=["Developer API Keys"])
 class CreateKeyRequest(BaseModel):
     name: str = Field(..., max_length=100, example="Mobile App Integration")
     rate_limit: int = Field(default=100, ge=1, le=10000)
+    scopes: str = Field(
+        default="qr:read,qr:write,analytics:read",
+        max_length=255,
+        example="qr:read,qr:write,analytics:read",
+    )
 
 
 @router.get("", response_model=List[Dict[str, Any]])
@@ -38,6 +43,7 @@ def list_api_keys(db: Session = Depends(get_db)):
             "key_prefix": k.key_prefix,
             "is_active": k.is_active,
             "rate_limit": k.rate_limit,
+            "scopes": getattr(k, "scopes", "qr:read,qr:write,analytics:read"),
             "created_at": k.created_at.isoformat() if k.created_at else None,
             "last_used_at": k.last_used_at.isoformat() if k.last_used_at else None,
         }
@@ -59,25 +65,27 @@ def create_api_key(req: CreateKeyRequest, db: Session = Depends(get_db)):
         key_hash=key_hash,
         is_active=True,
         rate_limit=req.rate_limit,
+        scopes=req.scopes,
     )
     db.add(key_record)
 
     activity = ActivityLog(
         action="api_key_created",
         module="api_keys",
-        details=json.dumps({"name": req.name, "prefix": prefix, "rate_limit": req.rate_limit}),
+        details=json.dumps({"name": req.name, "prefix": prefix, "rate_limit": req.rate_limit, "scopes": req.scopes}),
     )
     db.add(activity)
     db.commit()
     db.refresh(key_record)
 
-    logger.info(f"Generated API key '{prefix}...' for '{req.name}'")
+    logger.info(f"Generated API key '{prefix}...' with scopes [{req.scopes}] for '{req.name}'")
     return {
         "id": key_record.id,
         "name": key_record.name,
         "api_key": full_key,  # Returned ONLY ONCE
         "key_prefix": prefix,
         "rate_limit": key_record.rate_limit,
+        "scopes": key_record.scopes,
         "created_at": key_record.created_at.isoformat(),
         "warning": "Copy this secret key now. It will not be shown again!",
     }

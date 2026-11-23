@@ -1,14 +1,15 @@
 """
 QRMaster Pro — Bulk QR Generation API Router.
+Supports chunked processing, background job dispatch, SSE progress streaming, and cancellation.
 """
 from __future__ import annotations
 
 import json
-import uuid
 from pathlib import Path
+import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -34,11 +35,13 @@ def get_bulk_job(job_id: int, db: Session = Depends(get_db)):
 
 @router.post("/upload", summary="Upload CSV/Excel and generate QR codes in bulk")
 async def upload_bulk(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     qr_type: str = Form(default="url"),
     column_mapping: str = Form(default=""),
     customization: str = Form(default=""),
     job_name: str = Form(default=""),
+    async_mode: bool = Form(default=False),
     db: Session = Depends(get_db),
 ):
     """Upload a CSV/Excel file and generate a QR for each row."""
@@ -69,6 +72,25 @@ async def upload_bulk(
     custom = json.loads(customization) if customization else None
 
     try:
+        if async_mode:
+            job, _ = bulk_service.create_pending_job(
+                db=db,
+                file_path=upload_path,
+                qr_type=qr_type,
+                column_mapping=mapping,
+                job_name=job_name,
+            )
+            background_tasks.add_task(
+                bulk_service.run_job_bg,
+                job_id=job.id,
+                file_path=upload_path,
+                qr_type=qr_type,
+                column_mapping=mapping,
+                customization=custom,
+            )
+            return bulk_service._serialize(job)
+
+        # Synchronous execution for backward compatibility
         result = bulk_service.process_file(
             db=db,
             file_path=upload_path,
@@ -83,6 +105,29 @@ async def upload_bulk(
     except Exception as exc:
         logger.error(f"Bulk upload error: {exc}")
         raise HTTPException(status_code=500, detail="Bulk generation failed")
+
+
+@router.get("/{job_id}/stream", summary="Stream live bulk job progress events (SSE)")
+async def stream_bulk_job_progress(job_id: int):
+    """Server-Sent Events endpoint streaming job status, heartbeats, and progress."""
+    return StreamingResponse(
+        bulk_service.stream_job_events(job_id),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@router.post("/{job_id}/cancel", summary="Cancel an active bulk job")
+def cancel_bulk_job(job_id: int, db: Session = Depends(get_db)):
+    """Cancel a running or pending bulk job."""
+    result = bulk_service.cancel_job(db, job_id)
+    if not result:
+        raise HTTPException(status_code=404, detail=f"Bulk job {job_id} not found")
+    return result
 
 
 @router.get("/{job_id}/download", summary="Download the ZIP of a bulk job")
