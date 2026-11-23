@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.api.deps import (
@@ -100,13 +101,16 @@ def list_user_workspaces(
     member_ws_ids = {m.workspace_id for m in memberships}
 
     # Fetch owned or member workspaces, plus legacy default
+    query_conditions = [
+        Workspace.owner_id == user_id,
+        Workspace.id == LEGACY_DEFAULT_WORKSPACE,
+    ]
+    if member_ws_ids:
+        query_conditions.append(Workspace.id.in_(member_ws_ids))
+
     workspaces = (
         db.query(Workspace)
-        .filter(
-            (Workspace.owner_id == user_id)
-            | (Workspace.id.in_(member_ws_ids))
-            | (Workspace.id == LEGACY_DEFAULT_WORKSPACE)
-        )
+        .filter(or_(*query_conditions))
         .all()
     )
 
