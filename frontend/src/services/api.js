@@ -1,6 +1,8 @@
 import axios from 'axios'
 
-const API_BASE_URL = 'https://qr-generator-2-8sv7.onrender.com'
+const rawBase = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000').trim()
+const cleanBase = rawBase.replace(/\/api\/v1\/?$/, '').replace(/\/+$/, '')
+const API_BASE_URL = `${cleanBase}/api/v1`
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -86,9 +88,11 @@ export const exportAPI = {
 
 // ===== Dynamic QR =====
 export const dynamicAPI = {
+  list: () => api.get('/dynamic'),
   create: (data) => api.post('/dynamic', data),
   getAnalytics: (id) => api.get(`/dynamic/${id}/analytics`),
   update: (id, data) => api.put(`/dynamic/${id}`, data),
+  delete: (id) => api.delete(`/dynamic/${id}`),
 }
 
 // ===== API Keys =====

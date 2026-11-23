@@ -57,9 +57,12 @@ def export_pdf(db: Session = Depends(get_db)):
 
 
 @router.post("/sticker-sheet", summary="Export printable A4 QR sticker sheet")
-def export_sticker_sheet(db: Session = Depends(get_db)):
+def export_sticker_sheet(
+    layout: str = Query(default="3x7", description="Grid layout (3x7 or 3x8)"),
+    db: Session = Depends(get_db),
+):
     try:
-        data, filename = export_service.export_sticker_sheet_pdf(db)
+        data, filename = export_service.export_sticker_sheet_pdf(db, layout=layout)
         return Response(
             content=data,
             media_type="application/pdf",

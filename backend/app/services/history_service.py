@@ -139,7 +139,9 @@ class HistoryService:
 
     def _serialize(self, db: Session, record: QRHistory) -> Dict[str, Any]:
         category_name = None
-        if record.category_id:
+        if record.category:
+            category_name = record.category.name
+        elif record.category_id:
             cat = db.query(QRCategory).filter(QRCategory.id == record.category_id).first()
             if cat:
                 category_name = cat.name

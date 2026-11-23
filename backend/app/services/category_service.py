@@ -1,7 +1,7 @@
 """
 QRMaster Pro — Category Service.
 
-Business logic for managing QR categories.
+Business logic for managing QR categories with safe category counts and deletions.
 """
 from __future__ import annotations
 
@@ -44,10 +44,14 @@ class CategoryService:
         # Ensure unique slug
         existing = db.query(QRCategory).filter(QRCategory.slug == slug).first()
         if existing:
-            slug = f"{slug}-{db.query(QRCategory).count()}"
+            slug = f"{slug}-{db.query(QRCategory).count() + 1}"
         cat = QRCategory(
-            name=name, slug=slug, description=description or None,
-            icon=icon or None, color=color or None, is_default=False,
+            name=name.strip(),
+            slug=slug,
+            description=description.strip() if description else None,
+            icon=icon.strip() if icon else None,
+            color=color.strip() if color else None,
+            is_default=False,
         )
         db.add(cat)
         db.commit()
@@ -62,24 +66,30 @@ class CategoryService:
         if not c:
             return None
         if name:
-            c.name = name
+            c.name = name.strip()
             c.slug = _slugify(name)
         if description is not None:
-            c.description = description
+            c.description = description.strip() if description else None
         if icon is not None:
-            c.icon = icon
+            c.icon = icon.strip() if icon else None
         if color is not None:
-            c.color = color
+            c.color = color.strip() if color else None
         db.commit()
         db.refresh(c)
-        return self._serialize(c, 0)
+        count = db.query(QRHistory).filter(QRHistory.category_id == c.id).count()
+        return self._serialize(c, count)
 
     def delete(self, db: Session, category_id: int) -> bool:
         c = db.query(QRCategory).filter(QRCategory.id == category_id).first()
         if not c:
             return False
         if c.is_default:
-            raise ValueError("Default categories cannot be deleted")
+            raise ValueError("Default system categories cannot be deleted")
+
+        # Safely detach QR history items without deleting them
+        db.query(QRHistory).filter(QRHistory.category_id == category_id).update(
+            {QRHistory.category_id: None}, synchronize_session=False
+        )
         db.delete(c)
         db.commit()
         logger.info(f"Deleted category id={category_id}")

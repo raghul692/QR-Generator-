@@ -1,0 +1,30 @@
+services:
+  # ===== QRMaster Pro FastAPI Backend Service =====
+  - type: web
+    name: qrmaster-pro-backend
+    runtime: python
+    rootDir: backend
+    plan: starter
+    region: oregon
+    buildCommand: "pip install -r requirements.txt"
+    preDeployCommand: "python -m alembic upgrade head"
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /health/ready
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.14
+      - key: DEBUG
+        value: "false"
+      - key: DATABASE_URL
+        sync: false
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: PUBLIC_REDIRECT_BASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false

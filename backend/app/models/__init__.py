@@ -59,7 +59,7 @@ class QRCategory(Base, TimestampMixin):
 
     # Relationships
     history_items: Mapped[list["QRHistory"]] = relationship(
-        back_populates="category", cascade="all, delete-orphan"
+        back_populates="category"
     )
 
     __table_args__ = (Index("idx_categories_slug", "slug"),)

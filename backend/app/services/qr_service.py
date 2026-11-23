@@ -72,8 +72,30 @@ class QRService:
         """Generate a QR code, optionally persist to history, return response."""
         logger.info(f"Generating QR: type={qr_type}, title={title}")
 
-        # 1. Build encoded data
-        encoded = registry.build(qr_type, data)
+        # 1. Build encoded data (handle dynamic QR routing if enabled)
+        is_dynamic = bool(customization and customization.get("is_dynamic"))
+        dyn = None
+        if is_dynamic:
+            target_url = registry.build(qr_type, data)
+            expires_at = None
+            if customization.get("expires_at"):
+                try:
+                    expires_at = datetime.fromisoformat(customization["expires_at"])
+                except Exception:
+                    pass
+            from app.services.dynamic_qr_service import dynamic_qr_service
+            dyn = dynamic_qr_service.create_dynamic_qr(
+                db=db,
+                title=title,
+                target_url=target_url,
+                password=customization.get("password"),
+                expires_at=expires_at,
+            )
+            encoded = f"{settings.PUBLIC_REDIRECT_BASE_URL.rstrip('/')}/r/{dyn.short_code}"
+            logger.info(f"Dynamic QR enabled: short_code={dyn.short_code}, redirect_url={encoded}")
+        else:
+            encoded = registry.build(qr_type, data)
+
         custom = self._build_customization(customization)
 
         # 2. Render image
@@ -108,6 +130,9 @@ class QRService:
             db.commit()
             db.refresh(history)
             history_id = history.id
+            if dyn:
+                dyn.qr_history_id = history_id
+                db.commit()
             logger.info(f"Saved QR history id={history_id}")
 
         return {
@@ -119,29 +144,48 @@ class QRService:
             "preview_base64": b64,
             "file_path": str(file_path) if save_to_history else None,
             "category_id": category_id,
+            "is_dynamic": is_dynamic,
+            "dynamic_id": dyn.id if dyn else None,
+            "short_code": dyn.short_code if dyn else None,
+            "redirect_url": encoded if is_dynamic else None,
         }
 
     # ------------------------------------------------------------------ #
     #  Regenerate from history
     # ------------------------------------------------------------------ #
     def regenerate(self, db: Session, history_id: int) -> Dict[str, Any]:
-        """Regenerate a QR from an existing history record."""
+        """Regenerate and refresh preview for an existing history record without creating duplicates."""
         record = db.query(QRHistory).filter(QRHistory.id == history_id).first()
         if not record:
             raise ValueError(f"QR history {history_id} not found")
 
         custom_dict = json.loads(record.customization_json) if record.customization_json else {}
-        data = json.loads(record.content) if record.content else {}
+        custom = self._build_customization(custom_dict)
 
-        return self.generate(
-            db=db,
-            title=record.title,
-            qr_type=record.qr_type,
-            data=data,
-            category_id=record.category_id,
-            customization=custom_dict,
-            save_to_history=True,
-        )
+        img = renderer.render_image(record.encoded_data, custom)
+        filename = f"qr_{record.qr_type}_{record.id}.png"
+        file_path = settings.generated_qr_path / filename
+        renderer.save_png(img, file_path)
+
+        img_bytes = renderer.to_bytes(img, fmt="PNG")
+        b64 = f"data:image/png;base64,{base64.b64encode(img_bytes).decode('utf-8')}"
+
+        record.preview_path = str(file_path)
+        record.file_path = str(file_path)
+        db.commit()
+        db.refresh(record)
+
+        logger.info(f"Regenerated QR for history id={record.id}")
+        return {
+            "id": record.id,
+            "title": record.title,
+            "qr_type": record.qr_type,
+            "content": record.content,
+            "encoded_data": record.encoded_data,
+            "preview_base64": b64,
+            "file_path": str(file_path),
+            "category_id": record.category_id,
+        }
 
     # ------------------------------------------------------------------ #
     #  Download (increment count + return file)

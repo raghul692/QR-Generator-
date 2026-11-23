@@ -69,7 +69,8 @@ class QRScanner:
                 decoded = pyzbar_decode(img)
                 for d in decoded:
                     data = d.data.decode("utf-8", errors="replace")
-                    results.append(ScanResult(data=data, qr_type=d.type, raw=d.data))
+                    classified = self.classify(data)
+                    results.append(ScanResult(data=data, qr_type=classified, raw=d.data))
             except Exception as exc:  # noqa: BLE001
                 logger.warning(f"pyzbar decode failed: {exc}")
 
@@ -81,7 +82,8 @@ class QRScanner:
                 detector = cv2.QRCodeDetector()
                 data, points, _ = detector.detectAndDecode(gray)
                 if data:
-                    results.append(ScanResult(data=data, qr_type="QRCODE"))
+                    classified = self.classify(data)
+                    results.append(ScanResult(data=data, qr_type=classified))
             except Exception as exc:  # noqa: BLE001
                 logger.warning(f"opencv decode failed: {exc}")
 

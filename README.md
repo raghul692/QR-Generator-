@@ -1,51 +1,51 @@
 # 🚀 QRMaster Pro — Enterprise QR Code Platform
 
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.109.0-009688.svg?style=flat&logo=fastapi)](https://fastapi.tiangolo.com/)
-[![React](https://img.shields.io/badge/React-18.2.0-61DAFB.svg?style=flat&logo=react)](https://reactjs.org/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4.0-38B2AC.svg?style=flat&logo=tailwind-css)](https://tailwindcss.com/)
-[![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1.svg?style=flat&logo=mysql)](https://www.mysql.com/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115.6-009688.svg?style=flat&logo=fastapi)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-18.3.1-61DAFB.svg?style=flat&logo=react)](https://reactjs.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4.17-38B2AC.svg?style=flat&logo=tailwind-css)](https://tailwindcss.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Supabase-4169E1.svg?style=flat&logo=postgresql)](https://supabase.com/)
 [![PWA](https://img.shields.io/badge/PWA-Ready-5A0FC8.svg?style=flat&logo=pwa)](https://web.dev/progressive-web-apps/)
 
-A production-ready, enterprise-grade **QR Code Generator, Analytics & Management Platform** built with **React 18 + Tailwind CSS (Frontend)**, **FastAPI (Python Backend)**, and **MySQL (Database)**.
+An enterprise-grade **QR Code Generator, Analytics & Management Platform** built with **React 18 + Tailwind CSS (Vercel Frontend)**, **FastAPI (Render Backend)**, and **Supabase PostgreSQL (Database & Storage)**.
 
 ---
 
 ## ✨ Enterprise Features
 
 ### 🔹 1. Dynamic QR Codes & Short-Code Routing
-- **Editable Destination URLs**: Update target URLs anytime without re-printing QR codes.
-- **Short URL Redirect Engine**: Ultra-fast redirection service (`/r/{short_code}`) with automated scan logging.
-- **Password Protection**: Secure dynamic links using SHA-256 hashed password verification before redirection.
-- **Expiration Controls**: Set custom expiration datetimes for promotional or limited-time QR campaigns.
+- **Editable Destination URLs**: Update destination URLs anytime without re-printing physical QR codes.
+- **Production Short URL Redirection**: Fast redirection service (`/r/{short_code}`) with automated scan telemetry.
+- **Argon2id Password Protection**: Secure dynamic links using Argon2id password verification before redirection, with automatic upgrade for legacy hashes.
+- **Campaign Expiration Datetime**: Set expiration limits for promotional or temporary QR codes (returns HTTP 410 when expired).
 
 ### 🔹 2. Real-Time Scan Analytics
-- **Device & Browser Detection**: Automated User-Agent parsing (Mobile, Tablet, Desktop, Operating Systems).
-- **IP & Geo Insights**: Log IP addresses and scan timestamps for each interaction.
-- **Scan Metrics**: Track total scans, active dynamic links, and password-protected scan attempts.
+- **Device & Browser Detection**: Automated User-Agent classification (Mobile, Tablet, Desktop) and browser detection.
+- **Privacy-Aware Telemetry**: IP masking and unique scan calculation without exposing raw visitor addresses.
+- **Activity & Trends**: 7-day, 14-day, and 30-day time-series activity charts, plus top-performing QR rankings.
 
 ### 🔹 3. Enterprise Printable Sticker Sheet Export
-- **A4 Grid PDF Generator**: Automated PDF generation via `ReportLab` producing print-ready A4 sticker sheets (3x7 grid, 21 QR stickers per sheet).
+- **A4 Grid PDF Generator**: Automated PDF generation via `ReportLab` producing print-ready A4 sticker sheets in **3x7 (21 stickers)** and **3x8 (24 stickers)** grid layouts.
 - **High-DPI Printing**: Vector SVG/PDF rendering designed for industrial labels and retail packaging.
 
 ### 🔹 4. Developer REST API Key Management
-- **API Key Provisioning**: Programmatically generate API keys prefixed with `qrm_...` for external integration.
-- **Secure Hash Storage**: Stored securely in database using SHA-256 one-way hashing.
+- **API Key Provisioning**: Programmatically generate API keys prefixed with `qrm_live_...`.
+- **One-Way Secure Hashing**: Stored securely using SHA-256 one-way hashing; keys are revealed only once upon creation.
 - **Header Authentication**: Access protected routes via `X-API-Key: qrm_live_...`.
-- **Key Revocation & Audit**: Instantly revoke keys from the Settings dashboard.
+- **Key Revocation & Audit**: Instantly deactivate keys with active-status checks and last-used tracking.
 
 ### 🔹 5. Progressive Web Application (PWA)
-- **Offline First**: Service Worker (`sw.js`) with cache-first static caching strategy.
+- **Offline First**: Service Worker (`sw.js`) caching static assets while bypassing dynamic API requests.
 - **Installable**: Full `manifest.json` with multi-size icon assets and standalone UI mode.
 
-### 🔹 6. QR Customization & Scanner Engine
-- **30+ Supported QR Content Types**: Text, URL, WiFi, vCard, Email, SMS, WhatsApp, Location, Event, Crypto (BTC/ETH), Payment Links (UPI/GPay/PhonePe), App Store.
-- **Custom Aesthetics**: Modules (Square, Rounded, Circular, Dots), background transparency, gradient overlays, embedded logos, and custom margins.
+### 🔹 6. 31 Supported QR Content Types & Customization
+- **Comprehensive Data Types**: Text, URL, Email, Phone, SMS, WhatsApp, Telegram, Wi-Fi, vCard, GPS Coordinates, Google Maps, Facebook, Instagram, LinkedIn, GitHub, YouTube, Twitter/X, UPI, Google Pay, PhonePe, Paytm, Bitcoin, Ethereum, Events, Calendars, Zoom, Google Meet, Meeting Links, App Store Links, File Links, and Custom Payloads.
+- **Custom Aesthetics**: Modules (Square, Rounded, Dots), background transparency, gradient overlays, embedded logos, and custom margins.
 - **Computer Vision Scanner**: Dual scanning fallback leveraging `pyzbar` and `OpenCV`.
 
-### 🔹 7. Bulk Generation & Export Tooling
-- **CSV / Excel Import**: Process batch QR requests in seconds.
+### 🔹 7. Bulk Generation & Database Backups
+- **CSV / Excel Import**: Process batch QR requests into a packaged ZIP archive.
 - **Multi-Format Export**: Save as PNG, JPG, SVG, PDF, CSV, Excel, or ZIP.
-- **Database Backup & Restore**: Full system snapshot creation and restoration.
+- **Engine-Agnostic Database Backup & Restore**: Structured JSON snapshots of database tables and image archives.
 
 ---
 
@@ -53,28 +53,22 @@ A production-ready, enterprise-grade **QR Code Generator, Analytics & Management
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│           React 18 Frontend (Vite + PWA)               │
+│            React 18 Frontend (Vercel SPA)               │
 │  [Pages] → [TanStack Query / Context] → [Axios Client]  │
 └────────────────────────────┬────────────────────────────┘
-                             │ REST API / X-API-Key
+                             │ HTTPS / REST API / X-API-Key
 ┌────────────────────────────▼────────────────────────────┐
-│                  FastAPI Backend Server                 │
-│  [API Routers] → [Services] → [Dynamic QR / Redirect]   │
-│   [QR Engine]    [Analytics]   [Sticker Sheet PDF]      │
+│              FastAPI Backend Server (Render)            │
+│  [Health Probes]  [API Routers]  [Dynamic QR Redirect]  │
+│   [QR Engine]      [Analytics]    [Sticker Sheet PDF]   │
 └────────────────────────────┬────────────────────────────┘
-                             │ SQLAlchemy 2.0 ORM
+                             │ SQLAlchemy 2.0 (psycopg2)
+                             │ Session Mode Connection Pooler (Port 5432)
 ┌────────────────────────────▼────────────────────────────┐
-│             MySQL 8.0 (12 Normalized Tables)            │
+│             Supabase Hosted PostgreSQL                  │
+│       (12 Normalized Tables & Alembic Migrations)       │
 └─────────────────────────────────────────────────────────┘
 ```
-
-### Backend Layers (Clean Architecture)
-- `api/` — FastAPI endpoint routers (`dynamic_router.py`, `export_router.py`, `settings_router.py`, `api_keys.py`, etc.)
-- `services/` — Business logic layer (`dynamic_qr_service.py`, `export_service.py`, `settings_service.py`)
-- `qr_engine/` — Strategy-pattern QR generation & image rendering
-- `models/` — SQLAlchemy ORM models (`DynamicQR`, `ScanLog`, `APIKey`, `QRHistory`, etc.)
-- `schemas/` — Pydantic v2 DTO schemas for strong input/output validation
-- `database/` — Engine config, session management, and automated database seeder
 
 ---
 
@@ -82,194 +76,91 @@ A production-ready, enterprise-grade **QR Code Generator, Analytics & Management
 
 | Table | Purpose |
 |-------|---------|
-| `qr_history` | Stored QR records (content, styling, preview path) |
-| `dynamic_qrs` | Dynamic QR metadata (short code, target URL, password hash, expiration) |
-| `scan_logs` | Real-time scan activity (IP address, user-agent, device, browser) |
-| `api_keys` | Developer API credentials (key prefix, hashed secret, status) |
-| `qr_categories` | Category taxonomy (11 default categories + custom) |
+| `qr_categories` | 14 default system categories + custom user categories |
+| `qr_history` | Stored QR records (content, styling, preview path, favorite) |
+| `dynamic_qrs` | Dynamic QR metadata (short code, target URL, Argon2 password hash, expiration) |
+| `scan_logs` | Real-time scan telemetry (masked IP, user-agent, device, browser, timestamp) |
+| `api_keys` | Developer API credentials (prefix, hashed secret, active status, rate limit) |
 | `qr_templates` | Saved user customization presets |
-| `qr_bulk_jobs` | Bulk CSV/Excel generation tracking |
-| `qr_exports` | System export activity |
-| `analytics` | Aggregated metrics |
+| `qr_bulk_jobs` | Bulk CSV/Excel generation tracking and ZIP packages |
+| `qr_exports` | System export activity records |
+| `analytics` | Pre-aggregated metric history |
 | `settings` | System-wide configuration key-value storage |
 | `activity_logs` | System audit trail |
-| `backup_logs` | Automated & manual backup metadata |
+| `backup_logs` | Database snapshot and file backup records |
 
 ---
 
-## 📦 Tech Stack
-
-### Frontend
-- **Framework**: React 18 (Vite build tool)
-- **Styling**: Vanilla CSS + Tailwind CSS 3
-- **State Management**: TanStack Query (React Query v5) + Context API
-- **Animations**: Framer Motion
-- **Icons & Alerts**: React Icons, React Hot Toast
-- **HTTP Client**: Axios
-
-### Backend
-- **Framework**: Python 3.10+ & FastAPI
-- **Database ORM**: SQLAlchemy 2.0 & PyMySQL
-- **Data Validation**: Pydantic v2
-- **QR & Graphics**: `qrcode`, `segno`, `Pillow`, `reportlab`
-- **Computer Vision**: `opencv-python`, `pyzbar`
-- **Analytics & Export**: `pandas`, `openpyxl`, `user-agents`
-- **Logging**: `Loguru`
-
----
-
-## 🚀 Quick Start & Installation
+## 🚀 Getting Started (Local Development)
 
 ### Prerequisites
 - Python 3.10+
 - Node.js 18+
-- MySQL 8.0+
-
----
+- Supabase Project or local PostgreSQL instance
 
 ### 1. Backend Setup
-
 ```bash
 cd backend
 
-# 1. Create and activate virtual environment
+# Create virtual environment
 python -m venv venv
-venv\Scripts\activate      # On Windows
-# source venv/bin/activate  # On Linux/macOS
+# On Linux/macOS: source venv/bin/activate
+# On Windows: .\venv\Scripts\activate
 
-# 2. Install dependencies
+# Install dependencies
 pip install -r requirements.txt
 
-# 3. Configure Database in backend/.env
-# DB_HOST=localhost
-# DB_PORT=3306
-# DB_USER=root
-# DB_PASSWORD=your_mysql_password
-# DB_NAME=qrmaster_pro
+# Run migrations
+python -m alembic upgrade head
 
-# 4. Initialize Database (Creates tables & seeds default categories + settings)
+# Seed default categories and settings
 python -m app.database.seed
 
-# 5. Start Backend Server
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+# Start backend server
+uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-- **Backend API**: `http://127.0.0.1:8000`
-- **Interactive Swagger Docs**: `http://127.0.0.1:8000/docs`
-
----
-
 ### 2. Frontend Setup
-
 ```bash
 cd frontend
 
-# 1. Install dependencies
+# Install dependencies
 npm install
 
-# 2. Start Development Server
+# Start Vite development server
 npm run dev
 ```
-
-- **Frontend Application**: `http://localhost:5173`
-
----
-
-## 📡 API Endpoints Overview
-
-All backend endpoints are prefixed under `/api/v1`.
-
-### 🔹 Dynamic QR & Redirection
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/dynamic/create` | Create a new dynamic QR with short code & target URL |
-| GET | `/r/{short_code}` | Public redirect route (logs scan analytics) |
-| POST | `/r/{short_code}/unlock` | Unlock password-protected dynamic QR |
-| PUT | `/dynamic/{id}` | Update dynamic QR target URL or password |
-| GET | `/dynamic/{id}/analytics` | Get detailed scan analytics for a dynamic QR |
-
-### 🔹 Enterprise Printing & Export
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/export/sticker-sheet` | Generate & download A4 PDF Printable Sticker Sheet |
-| GET | `/export/history/csv` | Export QR history as CSV |
-| GET | `/export/history/excel` | Export QR history as Excel spreadsheet |
-| GET | `/export/history/pdf` | Export full QR summary report as PDF |
-
-### 🔹 Developer API Keys
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api-keys/` | List active developer API keys |
-| POST | `/api-keys/generate` | Issue a new API key (`qrm_live_...`) |
-| DELETE | `/api-keys/{id}` | Revoke an API key |
-
-### 🔹 Settings & Configuration
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/settings/dict` | Get configuration key-value dictionary |
-| PUT | `/settings/` | Bulk update system settings |
+Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ---
 
-## 🧹 Zero-Data Production Reset Utility
+## 🧪 Running Automated Tests
 
-To clean test history and reset the application to a fresh state before production deployment:
+Run the complete 45-test suite covering all 31 builders, dynamic QR redirection, password protection, and exports:
 
 ```bash
 cd backend
-python reset_db_and_files.py
+python -m pytest tests -v
 ```
 
-This utility safely:
-- Truncates user data tables (`qr_history`, `dynamic_qrs`, `scan_logs`, `api_keys`, etc.)
-- Retains default seeded categories and system settings.
-- Wipes temporary storage files from `app/generated_qr/`, `app/exports/`, `app/backups/`, and `app/logs/`.
-
----
-
-## 📂 Project Structure
-
-```
-QR_generator/
-├── backend/
-│   ├── app/
-│   │   ├── api/             # REST Routers (Dynamic, Export, History, Settings, etc.)
-│   │   ├── database/        # Session, engine, seed script
-│   │   ├── models/          # SQLAlchemy ORM models (12+ tables)
-│   │   ├── qr_engine/       # Custom QR generator & renderer
-│   │   ├── schemas/         # Pydantic v2 DTOs
-│   │   ├── services/        # Service business logic layer
-│   │   └── main.py          # FastAPI application entry point
-│   ├── reset_db_and_files.py # Production reset script
-│   ├── requirements.txt     # Backend dependencies
-│   └── .env                 # Environment configuration
-│
-├── frontend/
-│   ├── public/              # PWA manifest, service worker, icons
-│   ├── src/
-│   │   ├── components/      # UI components & charts
-│   │   ├── layouts/         # App shell & layout wrapper
-│   │   ├── pages/           # Generator, Scanner, History, Analytics, Settings, etc.
-│   │   ├── redux/           # Theme context
-│   │   └── services/        # Axios API client bindings
-│   ├── package.json
-│   └── vite.config.js
-│
-├── docker-compose.yml       # Docker container setup
-└── README.md                # Documentation
+Run frontend production build verification:
+```bash
+cd frontend
+npm run build
 ```
 
 ---
 
-## 🔒 Security & Best Practices
+## 🚢 Deployment Documentation
 
-- **Password Hashing**: SHA-256 encryption for dynamic link passwords and API key secrets.
-- **Input Sanitization**: Pydantic v2 validation on all API requests.
-- **SQL Injection Defense**: 100% parameterized queries via SQLAlchemy ORM.
-- **CORS Management**: Configured for local & production origin domain restrictions.
+- [docs/PRODUCTION_AUDIT.md](docs/PRODUCTION_AUDIT.md) — Comprehensive repository audit findings and remediation records.
+- [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md) — Step-by-step Supabase database configuration, pooler selection, and migrations.
+- [docs/DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md) — Production deployment instructions for Render and Vercel.
+- [docs/FEATURE_MATRIX.md](docs/FEATURE_MATRIX.md) — Full feature status matrix and test coverage.
+- [docs/TEST_REPORT.md](docs/TEST_REPORT.md) — Pytest execution records and build artifacts.
+- [docs/PRODUCTION_ENVIRONMENT.md](docs/PRODUCTION_ENVIRONMENT.md) — Production environment variables specification.
 
 ---
 
-## 📝 License
-
-This project is open-source and available under the [MIT License](LICENSE).
+## 📄 License
+MIT License.

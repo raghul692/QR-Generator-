@@ -125,18 +125,19 @@ class ExportService:
         return buf.getvalue(), "qr_history_report.pdf"
 
     def export_sticker_sheet_pdf(
-        self, db: Session, qr_ids: Optional[List[int]] = None, layout: str = "3x8"
+        self, db: Session, qr_ids: Optional[List[int]] = None, layout: str = "3x7"
     ) -> Tuple[bytes, str]:
-        """Export printable A4 QR sticker sheet layout (3x8 grid = 24 stickers)."""
+        """Export printable A4 QR sticker sheet layout (3x7 grid = 21 stickers or 3x8 grid = 24 stickers)."""
         from reportlab.lib.pagesizes import A4
         from reportlab.lib.styles import getSampleStyleSheet
         from reportlab.platypus import Image as RLImage, Paragraph, SimpleDocTemplate, Table, TableStyle
         from reportlab.lib import colors
 
+        max_stickers = 21 if layout == "3x7" else 24
         if qr_ids:
             records = db.query(QRHistory).filter(QRHistory.id.in_(qr_ids)).all()
         else:
-            records = db.query(QRHistory).order_by(QRHistory.created_at.desc()).limit(24).all()
+            records = db.query(QRHistory).order_by(QRHistory.created_at.desc()).limit(max_stickers).all()
 
         buf = io.BytesIO()
         doc = SimpleDocTemplate(

@@ -129,6 +129,35 @@ export default function Analytics() {
             </div>
           </div>
 
+          {/* Dynamic Scans & Device Analytics */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="glass-card p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Dynamic QR Scan Trends (7 days)</h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <LineChart data={analytics?.scan_trends_7d || []}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="value" stroke="#10B981" strokeWidth={3} dot={{ r: 4 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="glass-card p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Scan Device Breakdown</h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={analytics?.device_stats || []}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip />
+                  <Bar dataKey="value" fill="#06B6D4" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
           {/* Export stats */}
           <div className="glass-card p-6">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Export Statistics</h3>

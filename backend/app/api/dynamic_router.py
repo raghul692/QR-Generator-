@@ -2,18 +2,21 @@
 QRMaster Pro — Dynamic QR API Router.
 
 Endpoints for managing dynamic QR targets, password/expiry settings,
-and retrieving real-time scan analytics.
+listing dynamic QR campaigns, and retrieving real-time scan analytics.
+Uses PUBLIC_REDIRECT_BASE_URL for production-safe redirect links.
 """
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.database.session import get_db
+from app.models import DynamicQR
 from app.services.dynamic_qr_service import dynamic_qr_service
 
 router = APIRouter(prefix="/dynamic", tags=["Dynamic QR Codes"])
@@ -35,6 +38,29 @@ class UpdateDynamicQRRequest(BaseModel):
     expires_at: Optional[datetime] = None
 
 
+@router.get("", response_model=List[Dict[str, Any]])
+def list_dynamic_qrs(db: Session = Depends(get_db)):
+    """List all dynamic QR codes with scan counts and status."""
+    records = db.query(DynamicQR).order_by(DynamicQR.created_at.desc()).all()
+    base_url = settings.PUBLIC_REDIRECT_BASE_URL.rstrip("/")
+    return [
+        {
+            "id": r.id,
+            "short_code": r.short_code,
+            "title": r.title,
+            "target_url": r.target_url,
+            "redirect_url": f"{base_url}/r/{r.short_code}",
+            "scan_count": r.scan_count,
+            "is_active": r.is_active,
+            "is_expired": dynamic_qr_service.is_expired(r),
+            "has_password": bool(r.password_hash),
+            "expires_at": r.expires_at.isoformat() if r.expires_at else None,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in records
+    ]
+
+
 @router.post("", response_model=Dict[str, Any], status_code=status.HTTP_201_CREATED)
 def create_dynamic_qr(req: CreateDynamicQRRequest, db: Session = Depends(get_db)):
     """Create a new dynamic QR record."""
@@ -46,14 +72,16 @@ def create_dynamic_qr(req: CreateDynamicQRRequest, db: Session = Depends(get_db)
         password=req.password,
         expires_at=req.expires_at,
     )
+    base_url = settings.PUBLIC_REDIRECT_BASE_URL.rstrip("/")
     return {
         "id": dyn.id,
         "short_code": dyn.short_code,
-        "redirect_url": f"http://127.0.0.1:8000/r/{dyn.short_code}",
+        "redirect_url": f"{base_url}/r/{dyn.short_code}",
         "target_url": dyn.target_url,
         "title": dyn.title,
         "is_active": dyn.is_active,
-        "created_at": dyn.created_at.isoformat(),
+        "has_password": bool(dyn.password_hash),
+        "created_at": dyn.created_at.isoformat() if dyn.created_at else None,
     }
 
 
@@ -81,10 +109,12 @@ def update_dynamic_qr(
             password=req.password,
             expires_at=req.expires_at,
         )
+        base_url = settings.PUBLIC_REDIRECT_BASE_URL.rstrip("/")
         return {
             "id": dyn.id,
             "short_code": dyn.short_code,
             "target_url": dyn.target_url,
+            "redirect_url": f"{base_url}/r/{dyn.short_code}",
             "title": dyn.title,
             "is_active": dyn.is_active,
             "has_password": bool(dyn.password_hash),
@@ -92,3 +122,14 @@ def update_dynamic_qr(
         }
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
+
+
+@router.delete("/{dynamic_id}", status_code=status.HTTP_200_OK)
+def delete_dynamic_qr(dynamic_id: int, db: Session = Depends(get_db)):
+    """Delete a dynamic QR code and associated scan logs."""
+    dyn = db.query(DynamicQR).filter(DynamicQR.id == dynamic_id).first()
+    if not dyn:
+        raise HTTPException(status_code=404, detail=f"Dynamic QR {dynamic_id} not found")
+    db.delete(dyn)
+    db.commit()
+    return {"message": f"Dynamic QR {dynamic_id} deleted successfully", "success": True}

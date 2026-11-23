@@ -10,6 +10,7 @@ import Analytics from './pages/Analytics'
 import Export from './pages/Export'
 import Backup from './pages/Backup'
 import Settings from './pages/Settings'
+import NotFound from './pages/NotFound'
 
 export default function App() {
   return (
@@ -25,6 +26,7 @@ export default function App() {
         <Route path="/export" element={<Export />} />
         <Route path="/backup" element={<Backup />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
   )

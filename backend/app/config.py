@@ -3,12 +3,13 @@ QRMaster Pro — Application Configuration.
 
 Centralized settings loaded from environment variables / .env file using
 pydantic-settings. All configuration is strongly typed and validated.
+Supports Supabase PostgreSQL, Render, and Vercel production deployments.
 """
 from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import List, Union
+from typing import List, Optional, Union
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -35,18 +36,30 @@ class Settings(BaseSettings):
     API_V1_PREFIX: str = "/api/v1"
 
     # ---- Server ----
-    HOST: str = "127.0.0.1"
+    HOST: str = "0.0.0.0"
     PORT: int = 8000
 
-    # ---- Database ----
+    # ---- Database (Supabase PostgreSQL) ----
+    DATABASE_URL: Optional[str] = None
     DB_HOST: str = "localhost"
-    DB_PORT: int = 3306
-    DB_USER: str = "root"
+    DB_PORT: int = 5432
+    DB_USER: str = "postgres"
     DB_PASSWORD: str = ""
-    DB_NAME: str = "qrmaster_pro"
+    DB_NAME: str = "postgres"
+    DB_POOL_SIZE: int = 10
+    DB_MAX_OVERFLOW: int = 20
+    DB_POOL_PRE_PING: bool = True
+    DB_POOL_RECYCLE: int = 1800
 
-    # ---- CORS ----
-    CORS_ORIGINS: Union[str, List[str]] = "http://localhost:5173"
+    # ---- Supabase Cloud Services ----
+    SUPABASE_URL: Optional[str] = None
+    SUPABASE_SERVICE_ROLE_KEY: Optional[str] = None
+    SUPABASE_STORAGE_BUCKET: str = "qr-assets"
+
+    # ---- CORS & URLs ----
+    FRONTEND_ORIGIN: Optional[str] = None
+    CORS_ORIGINS: Union[str, List[str]] = "http://localhost:5173,http://127.0.0.1:5173"
+    PUBLIC_REDIRECT_BASE_URL: str = "http://127.0.0.1:8000"
 
     # ---- Storage directories (relative to backend/) ----
     GENERATED_QR_DIR: str = "app/generated_qr"
@@ -68,25 +81,44 @@ class Settings(BaseSettings):
     @classmethod
     def _split_cors(cls, v: Union[str, List[str]]) -> List[str]:
         if isinstance(v, str):
-            return [origin.strip() for origin in v.split(",") if origin.strip()]
+            origins = [origin.strip() for origin in v.split(",") if origin.strip()]
+            return origins
         return v  # type: ignore[return-value]
 
     @property
-    def database_url(self) -> str:
-        """SQLAlchemy MySQL connection URL (PyMySQL driver)."""
-        password = f":{self.DB_PASSWORD}" if self.DB_PASSWORD else ""
-        return (
-            f"mysql+pymysql://{self.DB_USER}{password}@"
-            f"{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}?charset=utf8mb4"
-        )
+    def cors_origins_list(self) -> List[str]:
+        """Return combined CORS origins including FRONTEND_ORIGIN if set."""
+        origins: List[str] = []
+        if isinstance(self.CORS_ORIGINS, list):
+            origins.extend(self.CORS_ORIGINS)
+        elif isinstance(self.CORS_ORIGINS, str):
+            origins.extend([o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()])
+        if self.FRONTEND_ORIGIN and self.FRONTEND_ORIGIN not in origins:
+            origins.append(self.FRONTEND_ORIGIN.rstrip("/"))
+        return origins
 
     @property
-    def database_url_no_db(self) -> str:
-        """Connection URL without the database name (used to create the DB)."""
+    def resolved_database_url(self) -> str:
+        """
+        SQLAlchemy PostgreSQL connection URL.
+        Normalizes postgres:// -> postgresql+psycopg2:// and ensures
+        safe pooler / direct connection format.
+        """
+        raw_url = self.DATABASE_URL
+        if raw_url and raw_url.strip():
+            url = raw_url.strip()
+            # Normalize driver
+            if url.startswith("postgres://"):
+                url = "postgresql+psycopg2://" + url[len("postgres://"):]
+            elif url.startswith("postgresql://") and not url.startswith("postgresql+"):
+                url = "postgresql+psycopg2://" + url[len("postgresql://"):]
+            return url
+
+        # Construct from components if no DATABASE_URL given
         password = f":{self.DB_PASSWORD}" if self.DB_PASSWORD else ""
         return (
-            f"mysql+pymysql://{self.DB_USER}{password}@"
-            f"{self.DB_HOST}:{self.DB_PORT}/?charset=utf8mb4"
+            f"postgresql+psycopg2://{self.DB_USER}{password}@"
+            f"{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
         )
 
     def _resolve(self, rel: str) -> Path:

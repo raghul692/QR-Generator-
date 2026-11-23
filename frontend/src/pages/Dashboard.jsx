@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import {
   BsQrCode, BsClock, BsDownload, BsFolder, BsLayers, BsStar,
+  BsLightningCharge, BsEye,
 } from 'react-icons/bs'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -14,29 +15,29 @@ const COLORS = ['#6366F1', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#06B6D4'
 
 const statIcons = {
   total_qr: BsQrCode,
+  total_dynamic_qr: BsLightningCharge,
+  total_scans: BsEye,
   today_qr: BsClock,
   total_downloads: BsDownload,
   total_categories: BsFolder,
-  total_bulk_jobs: BsLayers,
-  favorites: BsStar,
 }
 
 const statLabels = {
   total_qr: 'Total QR Codes',
-  today_qr: "Today's QR Codes",
+  total_dynamic_qr: 'Dynamic QRs',
+  total_scans: 'Total Scans',
+  today_qr: "Today's Created",
   total_downloads: 'Total Downloads',
   total_categories: 'Categories',
-  total_bulk_jobs: 'Bulk Jobs',
-  favorites: 'Favorites',
 }
 
 const statColors = {
   total_qr: 'from-primary-500 to-primary-700',
+  total_dynamic_qr: 'from-amber-500 to-amber-700',
+  total_scans: 'from-emerald-500 to-emerald-700',
   today_qr: 'from-green-500 to-green-700',
   total_downloads: 'from-blue-500 to-blue-700',
   total_categories: 'from-purple-500 to-purple-700',
-  total_bulk_jobs: 'from-orange-500 to-orange-700',
-  favorites: 'from-pink-500 to-pink-700',
 }
 
 export default function Dashboard() {
@@ -50,7 +51,7 @@ export default function Dashboard() {
     queryFn: () => dashboardAPI.getCharts().then((r) => r.data),
   })
 
-  const statKeys = ['total_qr', 'today_qr', 'total_downloads', 'total_categories', 'total_bulk_jobs', 'favorites']
+  const statKeys = ['total_qr', 'total_dynamic_qr', 'total_scans', 'today_qr', 'total_downloads', 'total_categories']
 
   return (
     <div className="space-y-6">

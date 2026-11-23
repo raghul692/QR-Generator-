@@ -1,19 +1,19 @@
 version: '3.8'
 
 services:
-  # ===== MySQL Database =====
+  # ===== PostgreSQL Database (Local Dev Mirror of Supabase PostgreSQL) =====
   db:
-    image: mysql:8.0
-    container_name: qrmaster_db
+    image: postgres:16-alpine
+    container_name: qrmaster_postgres
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: qrmaster_pro
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: qrmaster_pro
     ports:
-      - "3306:3306"
+      - "5432:5432"
     volumes:
-      - mysql_data:/var/lib/mysql
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+      - postgres_data:/var/lib/postgresql/data
 
   # ===== FastAPI Backend =====
   backend:
@@ -23,11 +23,10 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DB_HOST=db
-      - DB_PORT=3306
-      - DB_USER=root
-      - DB_PASSWORD=root
-      - DB_NAME=qrmaster_pro
+      - DATABASE_URL=postgresql+psycopg2://postgres:postgrespassword@db:5432/qrmaster_pro
+      - CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+      - PUBLIC_REDIRECT_BASE_URL=http://localhost:8000
+      - DEBUG=true
     depends_on:
       - db
     volumes:
@@ -40,10 +39,12 @@ services:
     restart: always
     ports:
       - "5173:5173"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000
     depends_on:
       - backend
     volumes:
       - ./frontend/src:/app/src
 
 volumes:
-  mysql_data:
+  postgres_data:

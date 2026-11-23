@@ -49,6 +49,10 @@ class QRGenerateResponse(BaseModel):
     preview_base64: str
     file_path: Optional[str] = None
     category_id: Optional[int] = None
+    is_dynamic: bool = False
+    dynamic_id: Optional[int] = None
+    short_code: Optional[str] = None
+    redirect_url: Optional[str] = None
 
 
 class QRPreviewRequest(BaseModel):

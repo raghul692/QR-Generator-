@@ -1,35 +1,43 @@
 """
 QRMaster Pro — Backup & Restore Service.
 
-Creates backups of the database (SQL dump) and QR images (ZIP), and
-records each backup in backup_logs. Supports listing and restoring.
+Creates snapshots of the database (JSON/SQL dump) and QR images (ZIP),
+recording each backup event in backup_logs. Designed for PostgreSQL / Supabase
+and Render cloud environments with zero local mysqldump dependency.
 """
 from __future__ import annotations
 
+import json
 import os
 import shutil
-import subprocess
 import zipfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.database.base import Base
+from app.database.session import SessionLocal, engine
 from app.models import BackupLog
 from app.utils.logger import logger
 
 
 class BackupService:
-    """Service for backup and restore operations."""
+    """Service for database and file backup/restore operations."""
 
     def list_backups(self, db: Session) -> List[Dict[str, Any]]:
+        """List all historical backup logs."""
         logs = db.query(BackupLog).order_by(BackupLog.created_at.desc()).all()
         return [self._serialize(l) for l in logs]
 
     def create_backup(self, db: Session, backup_type: str = "full") -> Dict[str, Any]:
-        """Create a backup. Types: full (db+images), db, images."""
+        """
+        Create a backup snapshot.
+        Supported types: 'full' (data + images), 'db' (data only), 'images' (images only).
+        """
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_dir = settings.backup_path / f"backup_{timestamp}"
         backup_dir.mkdir(parents=True, exist_ok=True)
@@ -40,10 +48,10 @@ class BackupService:
 
         try:
             if backup_type in ("full", "db"):
-                sql_path = backup_dir / "database.sql"
-                self._dump_database(sql_path)
-                total_size += sql_path.stat().st_size
-                details_parts.append(f"DB dump: {sql_path.name}")
+                dump_path = backup_dir / "database_dump.json"
+                self._dump_database_json(db, dump_path)
+                total_size += dump_path.stat().st_size
+                details_parts.append(f"DB snapshot: {dump_path.name}")
 
             if backup_type in ("full", "images"):
                 images_zip = backup_dir / "qr_images.zip"
@@ -51,13 +59,12 @@ class BackupService:
                 total_size += images_zip.stat().st_size
                 details_parts.append(f"Images: {images_zip.name}")
 
-            # Zip the whole backup dir
+            # Package entire backup into final ZIP archive
             final_zip = settings.backup_path / f"backup_{timestamp}.zip"
             self._zip_directory(backup_dir, final_zip)
-            # Clean up the intermediate dir
             shutil.rmtree(backup_dir, ignore_errors=True)
 
-            total_size += final_zip.stat().st_size
+            total_size = float(final_zip.stat().st_size)
             file_path = str(final_zip)
             logger.info(f"Backup created: {final_zip} ({total_size} bytes)")
         except Exception as exc:
@@ -65,9 +72,9 @@ class BackupService:
             file_path = None
             total_size = 0.0
             details_parts.append(f"Error: {exc}")
-            logger.error(f"Backup failed: {exc}")
+            logger.error(f"Backup creation failed: {exc}")
 
-        # Record in DB (always persist log)
+        # Always record in backup_logs
         log = BackupLog(
             backup_type=backup_type,
             file_path=file_path,
@@ -85,14 +92,14 @@ class BackupService:
         return self._serialize(log)
 
     def restore_backup(self, db: Session, backup_id: int) -> Dict[str, Any]:
-        """Restore from a backup ZIP (database + images)."""
+        """Restore database and images from a backup archive."""
         log = db.query(BackupLog).filter(BackupLog.id == backup_id).first()
         if not log or not log.file_path:
-            raise ValueError(f"Backup {backup_id} not found or has no file")
+            raise ValueError(f"Backup {backup_id} not found or has no archive file")
 
         zip_path = Path(log.file_path)
         if not zip_path.exists():
-            raise ValueError(f"Backup file not found: {zip_path}")
+            raise ValueError(f"Backup file archive not found: {zip_path}")
 
         extract_dir = settings.backup_path / f"restore_{backup_id}"
         extract_dir.mkdir(parents=True, exist_ok=True)
@@ -101,108 +108,72 @@ class BackupService:
             with zipfile.ZipFile(zip_path, "r") as zf:
                 zf.extractall(extract_dir)
 
-            # Restore database
-            sql_file = extract_dir / "database.sql"
-            if sql_file.exists():
-                self._restore_database(sql_file)
+            # 1. Restore database if dump is present
+            dump_file = extract_dir / "database_dump.json"
+            if dump_file.exists():
+                self._restore_database_json(db, dump_file)
 
-            # Restore images
+            # 2. Restore images
             images_zip = extract_dir / "qr_images.zip"
             if images_zip.exists():
                 with zipfile.ZipFile(images_zip, "r") as zf:
                     zf.extractall(settings.generated_qr_path)
 
             shutil.rmtree(extract_dir, ignore_errors=True)
-            logger.info(f"Restored backup {backup_id}")
+            logger.info(f"Successfully restored backup {backup_id}")
             return {"success": True, "message": f"Backup {backup_id} restored successfully"}
         except Exception as exc:
             logger.error(f"Restore failed: {exc}")
             raise
 
-    def _dump_database(self, path: Path) -> None:
-        """Dump MySQL database to SQL file using mysqldump or Python fallback."""
-        if shutil.which("mysqldump"):
-            cmd = [
-                "mysqldump",
-                f"--host={settings.DB_HOST}",
-                f"--port={settings.DB_PORT}",
-                f"--user={settings.DB_USER}",
-            ]
-            if settings.DB_PASSWORD:
-                cmd.append(f"--password={settings.DB_PASSWORD}")
-            cmd.extend(["--single-transaction", "--routines", "--triggers", settings.DB_NAME])
+    def _dump_database_json(self, db: Session, path: Path) -> None:
+        """Dump all tables into a structured JSON file."""
+        data: Dict[str, List[Dict[str, Any]]] = {}
+        for table in Base.metadata.sorted_tables:
+            query = text(f'SELECT * FROM "{table.name}"')
+            rows = db.execute(query).mappings().all()
+            table_data = []
+            for row in rows:
+                item = {}
+                for k, v in row.items():
+                    if isinstance(v, datetime):
+                        item[k] = v.isoformat()
+                    else:
+                        item[k] = v
+                table_data.append(item)
+            data[table.name] = table_data
 
-            with open(path, "w", encoding="utf-8") as f:
-                result = subprocess.run(cmd, stdout=f, stderr=subprocess.PIPE, text=True)
-            if result.returncode == 0:
-                return
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
 
-        # Python fallback for database dump if mysqldump is missing or failed
-        logger.info("Using Python database dump fallback...")
-        from sqlalchemy import text
-        from app.database.base import Base
-        from app.database.session import SessionLocal
+    def _restore_database_json(self, db: Session, dump_file: Path) -> None:
+        """Restore tables from a structured JSON dump."""
+        with open(dump_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
 
-        db = SessionLocal()
-        try:
-            with open(path, "w", encoding="utf-8") as f:
-                f.write(f"-- QRMaster Pro Database Dump (Python Fallback)\n-- Date: {datetime.now()}\n\n")
-                f.write("SET FOREIGN_KEY_CHECKS=0;\n\n")
-                for table in Base.metadata.sorted_tables:
-                    rows = db.execute(text(f"SELECT * FROM `{table.name}`")).mappings().all()
-                    if rows:
-                        cols = ", ".join([f"`{c}`" for c in rows[0].keys()])
-                        for row in rows:
-                            vals = []
-                            for v in row.values():
-                                if v is None:
-                                    vals.append("NULL")
-                                elif isinstance(v, (int, float)):
-                                    vals.append(str(v))
-                                elif isinstance(v, bool):
-                                    vals.append("1" if v else "0")
-                                elif isinstance(v, datetime):
-                                    vals.append(f"'{v.strftime('%Y-%m-%d %H:%M:%S')}'")
-                                else:
-                                    escaped = str(v).replace("\\", "\\\\").replace("'", "''")
-                                    vals.append(f"'{escaped}'")
-                            val_str = ", ".join(vals)
-                            f.write(f"INSERT INTO `{table.name}` ({cols}) VALUES ({val_str});\n")
-                        f.write("\n")
-                f.write("SET FOREIGN_KEY_CHECKS=1;\n")
-        finally:
-            db.close()
-
-    def _restore_database(self, sql_file: Path) -> None:
-        """Restore MySQL database from SQL file using mysql CLI or Python fallback."""
-        if shutil.which("mysql"):
-            cmd = [
-                "mysql",
-                f"--host={settings.DB_HOST}",
-                f"--port={settings.DB_PORT}",
-                f"--user={settings.DB_USER}",
-            ]
-            if settings.DB_PASSWORD:
-                cmd.append(f"--password={settings.DB_PASSWORD}")
-            cmd.append(settings.DB_NAME)
-
-            with open(sql_file, "r", encoding="utf-8") as f:
-                result = subprocess.run(cmd, stdin=f, stderr=subprocess.PIPE, text=True)
-            if result.returncode == 0:
-                return
-
-        # Python fallback for restore
-        logger.info("Using Python database restore fallback...")
-        from sqlalchemy import text
-        from app.database.session import engine
-
-        sql_content = sql_file.read_text(encoding="utf-8")
-        statements = [s.strip() for s in sql_content.split(";") if s.strip()]
-        with engine.connect() as conn:
-            for stmt in statements:
-                if stmt and not stmt.startswith("--"):
-                    conn.execute(text(stmt))
-            conn.commit()
+        # Import in order of sorted_tables
+        for table in Base.metadata.sorted_tables:
+            records = data.get(table.name, [])
+            if not records:
+                continue
+            for rec in records:
+                # Convert ISO datetimes back
+                for k, v in rec.items():
+                    if isinstance(v, str) and ("T" in v or "-" in v) and len(v) >= 19:
+                        try:
+                            rec[k] = datetime.fromisoformat(v)
+                        except ValueError:
+                            pass
+                # Construct insert
+                columns = list(rec.keys())
+                col_names = ", ".join([f'"{c}"' for c in columns])
+                placeholders = ", ".join([f":{c}" for c in columns])
+                stmt = text(f'INSERT INTO "{table.name}" ({col_names}) VALUES ({placeholders}) ON CONFLICT DO NOTHING')
+                try:
+                    db.execute(stmt, rec)
+                except Exception:
+                    pass
+        db.commit()
 
     def _zip_directory(self, src: Path, dest: Path) -> None:
         """Zip a directory's contents into dest."""

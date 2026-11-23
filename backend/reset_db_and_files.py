@@ -1,12 +1,12 @@
 """
 QRMaster Pro — Production Cleanup & Database Reset Script.
 
-Wipes all test records from database tables and clears all generated files
-from storage directories, resetting the platform to a 100% fresh, production-ready state.
+Wipes test records from database tables and clears generated files
+from storage directories, resetting the platform to a clean state.
+Compatible with PostgreSQL (Supabase), SQLite, and other supported engines.
 """
 from __future__ import annotations
 
-import os
 import shutil
 from pathlib import Path
 from sqlalchemy.orm import Session
@@ -15,42 +15,56 @@ from sqlalchemy import text
 from app.database.session import SessionLocal, engine
 from app.config import settings, BASE_DIR
 from app.database.seed import init_database
+from app.utils.logger import logger
 
 
 def reset_production_data():
     print("==================================================")
-    print("Starting Production Data Cleanup & Reset...")
+    print("Starting Clean Database & File Reset...")
     print("==================================================")
 
     db: Session = SessionLocal()
+    tables_to_clear = [
+        "scan_logs",
+        "dynamic_qrs",
+        "qr_exports",
+        "qr_bulk_jobs",
+        "qr_history",
+        "qr_templates",
+        "analytics",
+        "activity_logs",
+        "backup_logs",
+        "api_keys",
+    ]
+
     try:
-        # Disable foreign key checks for clean truncation
-        db.execute(text("SET FOREIGN_KEY_CHECKS = 0;"))
-        
-        tables_to_truncate = [
-            "qr_history",
-            "qr_exports",
-            "qr_bulk_jobs",
-            "analytics",
-            "activity_logs",
-            "backup_logs",
-            "dynamic_qrs",
-            "scan_logs",
-            "api_keys",
-        ]
+        url = settings.resolved_database_url
+        if "postgresql" in url or "postgres" in url:
+            # PostgreSQL cascade truncate
+            for table in tables_to_clear:
+                try:
+                    db.execute(text(f'TRUNCATE TABLE "{table}" CASCADE;'))
+                    print(f"  [+] Truncated table: {table}")
+                except Exception as e:
+                    print(f"  [-] Failed to truncate {table}: {e}")
+        elif "sqlite" in url:
+            # SQLite delete
+            for table in tables_to_clear:
+                try:
+                    db.execute(text(f"DELETE FROM {table};"))
+                    print(f"  [+] Cleared table: {table}")
+                except Exception as e:
+                    print(f"  [-] Failed to clear {table}: {e}")
+        else:
+            for table in tables_to_clear:
+                try:
+                    db.execute(text(f"DELETE FROM {table};"))
+                    print(f"  [+] Cleared table: {table}")
+                except Exception as e:
+                    print(f"  [-] Failed to clear {table}: {e}")
 
-        for table in tables_to_truncate:
-            try:
-                db.execute(text(f"TRUNCATE TABLE {table};"))
-                print(f"  [+] Truncated table: {table}")
-            except Exception as e:
-                print(f"  [-] Failed to truncate {table}: {e}")
-
-        # Re-enable foreign key checks
-        db.execute(text("SET FOREIGN_KEY_CHECKS = 1;"))
         db.commit()
         print("[+] Database tables reset cleanly.")
-
     except Exception as exc:
         db.rollback()
         print(f"[-] Error resetting database: {exc}")
@@ -59,7 +73,7 @@ def reset_production_data():
 
     # Re-run seed to ensure default categories & settings exist
     print("\nVerifying default database seed...")
-    init_database()
+    init_database(create_tables=True)
 
     # Clean storage directories
     storage_dirs = [
@@ -83,18 +97,8 @@ def reset_production_data():
                 except Exception as err:
                     print(f"  [-] Could not delete {item.name}: {err}")
 
-    # Remove temporary test scripts
-    test_files = [
-        BASE_DIR / "test_enterprise_features.py",
-        BASE_DIR / "test_settings.py",
-    ]
-    for tf in test_files:
-        if tf.exists():
-            tf.unlink()
-            print(f"  [+] Removed temporary test file: {tf.name}")
-
     print("\n==================================================")
-    print("SUCCESS: PRODUCTION CLEANUP COMPLETE — APP IS 100% FRESH!")
+    print("SUCCESS: CLEANUP COMPLETE — APP IS IN A FRESH STATE!")
     print("==================================================")
 
 
