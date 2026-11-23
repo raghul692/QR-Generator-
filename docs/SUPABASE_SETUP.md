@@ -4,16 +4,15 @@ This document provides exact, step-by-step instructions for provisioning, config
 
 ---
 
-## 1. Supabase Project Provisioning
+## 1. Production Database Provisioning
 
-1. Sign in to your [Supabase Dashboard](https://supabase.com/dashboard).
-2. Click **New project**.
-3. Configure project details:
-   - **Name:** `qrmaster-pro` (or preferred name)
-   - **Database Password:** Generate and store a strong, high-entropy password in your password manager.
-   - **Region:** Select the region closest to your Render backend deployment (e.g., `us-west-1` / Oregon for Render Oregon).
-   - **Pricing Plan:** Free or Pro.
-4. Click **Create new project** and wait for database initialization (typically 1–2 minutes).
+- **Host Project**: `portfolio-DB` (Ref: `brmafvpjvdgieelcgivi`)
+- **Region**: `ap-south-1` (Mumbai, India)
+- **Engine**: PostgreSQL 17 / 15+ compatible
+- **Application Role**: `qrmaster_app` (dedicated restricted database role)
+- **Status**: `ACTIVE_HEALTHY`
+
+The application tables (`qr_categories`, `qr_templates`, `qr_history`, `dynamic_qrs`, `scan_logs`, `api_keys`, `qr_bulk_jobs`, `qr_exports`, `analytics`, `settings`, `activity_logs`, `backup_logs`) are fully isolated and live on `portfolio-DB` without conflicting with existing tables.
 
 ---
 
