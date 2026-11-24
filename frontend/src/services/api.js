@@ -34,6 +34,14 @@ api.interceptors.response.use(
   }
 )
 
+// ===== Authentication & Identity =====
+export const authAPI = {
+  register: (data) => api.post('/auth/register', data),
+  login: (data) => api.post('/auth/login', data),
+  demoLogin: (role = 'admin') => api.post('/auth/demo', { role }),
+  getMe: () => api.get('/auth/me'),
+}
+
 // ===== QR Generation =====
 export const qrAPI = {
   getTypes: () => api.get('/qr/types'),
@@ -51,6 +59,8 @@ export const historyAPI = {
   update: (id, data) => api.patch(`/history/${id}`, data),
   delete: (id) => api.delete(`/history/${id}`),
   toggleFavorite: (id) => api.post(`/history/${id}/favorite`),
+  duplicate: (id) => api.post(`/history/${id}/duplicate`),
+  archive: (id) => api.post(`/history/${id}/archive`),
 }
 
 // ===== Categories =====
@@ -116,6 +126,7 @@ export const dynamicAPI = {
   getAnalytics: (id) => api.get(`/dynamic/${id}/analytics`),
   update: (id, data) => api.put(`/dynamic/${id}`, data),
   delete: (id) => api.delete(`/dynamic/${id}`),
+  duplicate: (id) => api.post(`/dynamic/${id}/duplicate`),
 }
 
 // ===== Landing Pages =====

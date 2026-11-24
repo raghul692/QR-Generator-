@@ -4,13 +4,21 @@ import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 import {
   BsSearch, BsTrash, BsStar, BsStarFill, BsDownload, BsArrowRepeat,
-  BsFunnel, BsClockHistory,
+  BsFunnel, BsClockHistory, BsFiles, BsArchive, BsArchiveFill,
 } from 'react-icons/bs'
 import { historyAPI, categoryAPI, qrAPI, exportAPI } from '../services/api'
 
 export default function History() {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
+  const [qrType, setQrType] = useState('')
+  const [categoryId, setCategoryId] = useState('')
+  const [isFavorite, setIsFavorite] = useState('')
+  const [isArchived, setIsArchived] = useState('false')
+  const [sortBy, setSortBy] = useState('created_at')
+  const [sortOrder, setSortOrder] = useState('desc')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
 
   const handleDownloadStickerSheet = async () => {
     try {
@@ -27,13 +35,6 @@ export default function History() {
       toast.error('Failed to export sticker sheet: ' + err.message, { id: 'sticker' })
     }
   }
-  const [qrType, setQrType] = useState('')
-  const [categoryId, setCategoryId] = useState('')
-  const [isFavorite, setIsFavorite] = useState('')
-  const [sortBy, setSortBy] = useState('created_at')
-  const [sortOrder, setSortOrder] = useState('desc')
-  const [page, setPage] = useState(1)
-  const [pageSize] = useState(10)
 
   const { data: categories } = useQuery({
     queryKey: ['categories'],
@@ -41,12 +42,13 @@ export default function History() {
   })
 
   const { data, isLoading } = useQuery({
-    queryKey: ['history', { search, qrType, categoryId, isFavorite, sortBy, sortOrder, page, pageSize }],
+    queryKey: ['history', { search, qrType, categoryId, isFavorite, isArchived, sortBy, sortOrder, page, pageSize }],
     queryFn: () => historyAPI.list({
       search: search || undefined,
       qr_type: qrType || undefined,
       category_id: categoryId || undefined,
       is_favorite: isFavorite === '' ? undefined : isFavorite === 'true',
+      is_archived: isArchived === '' ? undefined : isArchived === 'true',
       sort_by: sortBy,
       sort_order: sortOrder,
       page,
@@ -80,6 +82,24 @@ export default function History() {
     onError: (err) => toast.error(err.message),
   })
 
+  const duplicateMutation = useMutation({
+    mutationFn: (id) => historyAPI.duplicate(id),
+    onSuccess: () => {
+      toast.success('QR duplicated successfully!')
+      queryClient.invalidateQueries({ queryKey: ['history'] })
+    },
+    onError: (err) => toast.error('Failed to duplicate: ' + err.message),
+  })
+
+  const archiveMutation = useMutation({
+    mutationFn: (id) => historyAPI.archive(id),
+    onSuccess: (res) => {
+      toast.success(res.data.is_archived ? 'QR archived' : 'QR restored from archive')
+      queryClient.invalidateQueries({ queryKey: ['history'] })
+    },
+    onError: (err) => toast.error('Failed to toggle archive: ' + err.message),
+  })
+
   const handleDownload = async (id, fmt) => {
     try {
       const res = await qrAPI.download(id, fmt)
@@ -104,7 +124,7 @@ export default function History() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">QR History</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">Search, filter, and manage your generated QR codes</p>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">Search, filter, duplicate, and manage your generated QR codes</p>
         </div>
         <button
           onClick={handleDownloadStickerSheet}
@@ -119,9 +139,13 @@ export default function History() {
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3">
           <div className="md:col-span-2 lg:col-span-2 relative">
             <BsSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input type="text" placeholder="Search..." value={search}
+            <input
+              type="text"
+              placeholder="Search..."
+              value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-              className="input-field pl-10" />
+              className="input-field pl-10"
+            />
           </div>
           <select value={qrType} onChange={(e) => { setQrType(e.target.value); setPage(1) }} className="input-field">
             <option value="">All Types</option>
@@ -136,10 +160,10 @@ export default function History() {
             <option value="">All Categories</option>
             {categories?.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
-          <select value={isFavorite} onChange={(e) => { setIsFavorite(e.target.value); setPage(1) }} className="input-field">
-            <option value="">All</option>
-            <option value="true">Favorites</option>
-            <option value="false">Non-Favorites</option>
+          <select value={isArchived} onChange={(e) => { setIsArchived(e.target.value); setPage(1) }} className="input-field">
+            <option value="false">Active Only</option>
+            <option value="true">Archived</option>
+            <option value="">All (Active + Archived)</option>
           </select>
           <select value={`${sortBy}-${sortOrder}`} onChange={(e) => {
             const [by, order] = e.target.value.split('-')
@@ -192,6 +216,11 @@ export default function History() {
                           {item.is_favorite ? <BsStarFill className="text-yellow-400" /> : <BsStar className="text-gray-400" />}
                         </button>
                         <span className="font-medium">{item.title}</span>
+                        {item.is_archived && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 font-semibold">
+                            Archived
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="table-cell">
@@ -209,6 +238,12 @@ export default function History() {
                         </button>
                         <button onClick={() => regenerateMutation.mutate(item.id)} className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded" title="Regenerate">
                           <BsArrowRepeat className="text-gray-600 dark:text-gray-300" />
+                        </button>
+                        <button onClick={() => duplicateMutation.mutate(item.id)} className="p-1.5 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded" title="Duplicate QR">
+                          <BsFiles className="text-indigo-600 dark:text-indigo-400" />
+                        </button>
+                        <button onClick={() => archiveMutation.mutate(item.id)} className="p-1.5 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded" title={item.is_archived ? "Restore QR" : "Archive QR"}>
+                          {item.is_archived ? <BsArchiveFill className="text-amber-500" /> : <BsArchive className="text-gray-600 dark:text-gray-300" />}
                         </button>
                         <button onClick={() => { if (confirm('Delete this QR?')) deleteMutation.mutate(item.id) }} className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded" title="Delete">
                           <BsTrash className="text-red-500" />

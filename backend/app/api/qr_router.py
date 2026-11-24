@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_workspace
 from app.database.session import get_db
 from app.schemas import (
     MessageResponse,
@@ -51,7 +52,11 @@ def preview_qr(req: QRPreviewRequest):
 
 
 @router.post("/generate", response_model=QRGenerateResponse, summary="Generate and save a QR code")
-def generate_qr(req: QRGenerateRequest, db: Session = Depends(get_db)):
+def generate_qr(
+    req: QRGenerateRequest,
+    workspace_id: str = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
     """Generate a QR code and optionally save it to history."""
     try:
         result = qr_service.generate(
@@ -62,6 +67,7 @@ def generate_qr(req: QRGenerateRequest, db: Session = Depends(get_db)):
             category_id=req.category_id,
             customization=req.customization,
             save_to_history=req.save_to_history,
+            workspace_id=workspace_id,
         )
         return QRGenerateResponse(**result)
     except ValueError as exc:

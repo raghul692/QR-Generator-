@@ -12,6 +12,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPExcepti
 from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_workspace
 from app.config import settings
 from app.database.session import get_db
 from app.services.bulk_service import bulk_service
@@ -21,13 +22,20 @@ router = APIRouter(prefix="/bulk", tags=["Bulk QR Generation"])
 
 
 @router.get("/", summary="List bulk jobs")
-def list_bulk_jobs(db: Session = Depends(get_db)):
-    return bulk_service.list_jobs(db)
+def list_bulk_jobs(
+    workspace_id: str = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    return bulk_service.list_jobs(db, workspace_id=workspace_id)
 
 
 @router.get("/{job_id}", summary="Get a bulk job")
-def get_bulk_job(job_id: int, db: Session = Depends(get_db)):
-    result = bulk_service.get_job(db, job_id)
+def get_bulk_job(
+    job_id: int,
+    workspace_id: str = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    result = bulk_service.get_job(db, job_id, workspace_id=workspace_id)
     if not result:
         raise HTTPException(status_code=404, detail=f"Bulk job {job_id} not found")
     return result
@@ -42,6 +50,7 @@ async def upload_bulk(
     customization: str = Form(default=""),
     job_name: str = Form(default=""),
     async_mode: bool = Form(default=False),
+    workspace_id: str = Depends(get_current_workspace),
     db: Session = Depends(get_db),
 ):
     """Upload a CSV/Excel file and generate a QR for each row."""
@@ -79,6 +88,7 @@ async def upload_bulk(
                 qr_type=qr_type,
                 column_mapping=mapping,
                 job_name=job_name,
+                workspace_id=workspace_id,
             )
             background_tasks.add_task(
                 bulk_service.run_job_bg,
@@ -98,6 +108,7 @@ async def upload_bulk(
             column_mapping=mapping,
             customization=custom,
             job_name=job_name,
+            workspace_id=workspace_id,
         )
         return result
     except ValueError as exc:

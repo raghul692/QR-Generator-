@@ -12,8 +12,10 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_workspace
 from app.config import settings
 from app.database.session import get_db
 from app.models import DynamicQR
@@ -65,9 +67,23 @@ class UpdateDynamicQRRequest(BaseModel):
 
 
 @router.get("", response_model=List[Dict[str, Any]])
-def list_dynamic_qrs(db: Session = Depends(get_db)):
-    """List all dynamic QR codes with scan counts and status."""
-    records = db.query(DynamicQR).order_by(DynamicQR.created_at.desc()).all()
+def list_dynamic_qrs(
+    workspace_id: str = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    """List all dynamic QR codes with scan counts and status scoped to workspace."""
+    query = db.query(DynamicQR)
+    if workspace_id == "ws_legacy_default":
+        query = query.filter(
+            or_(
+                DynamicQR.workspace_id == "ws_legacy_default",
+                DynamicQR.workspace_id.is_(None),
+            )
+        )
+    else:
+        query = query.filter(DynamicQR.workspace_id == workspace_id)
+
+    records = query.order_by(DynamicQR.created_at.desc()).all()
     base_url = settings.public_redirect_url
     return [
         {
@@ -101,8 +117,12 @@ def list_dynamic_qrs(db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=Dict[str, Any], status_code=status.HTTP_201_CREATED)
-def create_dynamic_qr(req: CreateDynamicQRRequest, db: Session = Depends(get_db)):
-    """Create a new dynamic QR record."""
+def create_dynamic_qr(
+    req: CreateDynamicQRRequest,
+    workspace_id: str = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    """Create a new dynamic QR record scoped to workspace."""
     dyn = dynamic_qr_service.create_dynamic_qr(
         db=db,
         title=req.title,
@@ -123,6 +143,7 @@ def create_dynamic_qr(req: CreateDynamicQRRequest, db: Session = Depends(get_db)
         schedule_end_time=req.schedule_end_time,
         schedule_timezone=req.schedule_timezone,
         schedule_fallback_url=req.schedule_fallback_url,
+        workspace_id=workspace_id,
     )
     base_url = settings.public_redirect_url
     return {
@@ -150,9 +171,68 @@ def create_dynamic_qr(req: CreateDynamicQRRequest, db: Session = Depends(get_db)
     }
 
 
+@router.post("/{dynamic_id}/duplicate", response_model=Dict[str, Any], status_code=status.HTTP_201_CREATED)
+def duplicate_dynamic_qr(
+    dynamic_id: int,
+    workspace_id: str = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
+    """Duplicate an existing dynamic QR record with a newly assigned short code."""
+    query = db.query(DynamicQR).filter(DynamicQR.id == dynamic_id)
+    if workspace_id != "ws_legacy_default":
+        query = query.filter(DynamicQR.workspace_id == workspace_id)
+    dyn = query.first()
+    if not dyn:
+        raise HTTPException(status_code=404, detail=f"Dynamic QR {dynamic_id} not found")
+
+    new_dyn = dynamic_qr_service.create_dynamic_qr(
+        db=db,
+        title=f"{dyn.title} (Copy)",
+        target_url=dyn.target_url,
+        qr_history_id=dyn.qr_history_id,
+        password=None,
+        expires_at=dyn.expires_at,
+        ios_target_url=dyn.ios_target_url,
+        android_target_url=dyn.android_target_url,
+        max_scans=dyn.max_scans,
+        utm_source=dyn.utm_source,
+        utm_medium=dyn.utm_medium,
+        utm_campaign=dyn.utm_campaign,
+        meta_pixel_id=dyn.meta_pixel_id,
+        google_tag_id=dyn.google_tag_id,
+        geo_routing_json=dyn.geo_routing_json,
+        schedule_start_time=dyn.schedule_start_time,
+        schedule_end_time=dyn.schedule_end_time,
+        schedule_timezone=dyn.schedule_timezone,
+        schedule_fallback_url=dyn.schedule_fallback_url,
+        workspace_id=workspace_id,
+    )
+    base_url = settings.public_redirect_url
+    return {
+        "id": new_dyn.id,
+        "short_code": new_dyn.short_code,
+        "redirect_url": f"{base_url}/r/{new_dyn.short_code}",
+        "target_url": new_dyn.target_url,
+        "title": new_dyn.title,
+        "is_active": new_dyn.is_active,
+        "created_at": new_dyn.created_at.isoformat() if new_dyn.created_at else None,
+    }
+
+
 @router.get("/{dynamic_id}/analytics", response_model=Dict[str, Any])
-def get_dynamic_analytics(dynamic_id: int, db: Session = Depends(get_db)):
+def get_dynamic_analytics(
+    dynamic_id: int,
+    workspace_id: str = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
     """Get real-time scan analytics for a dynamic QR code."""
+    query = db.query(DynamicQR).filter(DynamicQR.id == dynamic_id)
+    if workspace_id != "ws_legacy_default":
+        query = query.filter(DynamicQR.workspace_id == workspace_id)
+    dyn = query.first()
+    if not dyn:
+        raise HTTPException(status_code=404, detail=f"Dynamic QR {dynamic_id} not found")
+
     try:
         return dynamic_qr_service.get_analytics(db, dynamic_id)
     except ValueError as exc:
@@ -161,9 +241,19 @@ def get_dynamic_analytics(dynamic_id: int, db: Session = Depends(get_db)):
 
 @router.put("/{dynamic_id}", response_model=Dict[str, Any])
 def update_dynamic_qr(
-    dynamic_id: int, req: UpdateDynamicQRRequest, db: Session = Depends(get_db)
+    dynamic_id: int,
+    req: UpdateDynamicQRRequest,
+    workspace_id: str = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
 ):
     """Update destination URL, title, password, attribution, limits, or expiration of a dynamic QR."""
+    query = db.query(DynamicQR).filter(DynamicQR.id == dynamic_id)
+    if workspace_id != "ws_legacy_default":
+        query = query.filter(DynamicQR.workspace_id == workspace_id)
+    dyn = query.first()
+    if not dyn:
+        raise HTTPException(status_code=404, detail=f"Dynamic QR {dynamic_id} not found")
+
     try:
         dyn = dynamic_qr_service.update_dynamic_qr(
             db=db,
@@ -216,9 +306,16 @@ def update_dynamic_qr(
 
 
 @router.delete("/{dynamic_id}", status_code=status.HTTP_200_OK)
-def delete_dynamic_qr(dynamic_id: int, db: Session = Depends(get_db)):
+def delete_dynamic_qr(
+    dynamic_id: int,
+    workspace_id: str = Depends(get_current_workspace),
+    db: Session = Depends(get_db),
+):
     """Delete a dynamic QR code and associated scan logs."""
-    dyn = db.query(DynamicQR).filter(DynamicQR.id == dynamic_id).first()
+    query = db.query(DynamicQR).filter(DynamicQR.id == dynamic_id)
+    if workspace_id != "ws_legacy_default":
+        query = query.filter(DynamicQR.workspace_id == workspace_id)
+    dyn = query.first()
     if not dyn:
         raise HTTPException(status_code=404, detail=f"Dynamic QR {dynamic_id} not found")
     db.delete(dyn)

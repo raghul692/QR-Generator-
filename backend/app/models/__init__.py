@@ -92,6 +92,24 @@ class WorkspaceMember(Base, TimestampMixin):
 
 
 # --------------------------------------------------------------------------- #
+#  0.1 qrmaster_users (Authentication & Identity)
+# --------------------------------------------------------------------------- #
+class QRMasterUser(Base, TimestampMixin):
+    __tablename__ = "qrmaster_users"
+
+    id: Mapped[str] = mapped_column(String(100), primary_key=True)
+    email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    role: Mapped[str] = mapped_column(String(50), default="authenticated", nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    __table_args__ = (
+        Index("idx_qrmaster_users_email", "email"),
+    )
+
+
+# --------------------------------------------------------------------------- #
 #  1. qr_categories
 # --------------------------------------------------------------------------- #
 class QRCategory(Base, TimestampMixin):
@@ -550,6 +568,7 @@ __all__ = [
     "TimestampMixin",
     "Workspace",
     "WorkspaceMember",
+    "QRMasterUser",
     "CustomDomain",
     "QRCategory",
     "QRHistory",

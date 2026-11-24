@@ -30,17 +30,26 @@ class BulkService:
 
     CHUNK_SIZE = 25
 
-    def list_jobs(self, db: Session) -> List[Dict[str, Any]]:
-        jobs = db.query(QRBulkJob).order_by(QRBulkJob.created_at.desc()).all()
+    def list_jobs(self, db: Session, workspace_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        query = db.query(QRBulkJob)
+        if workspace_id and workspace_id != "ws_legacy_default":
+            query = query.filter(QRBulkJob.workspace_id == workspace_id)
+        jobs = query.order_by(QRBulkJob.created_at.desc()).all()
         return [self._serialize(j) for j in jobs]
 
-    def get_job(self, db: Session, job_id: int) -> Optional[Dict[str, Any]]:
-        j = db.query(QRBulkJob).filter(QRBulkJob.id == job_id).first()
+    def get_job(self, db: Session, job_id: int, workspace_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        query = db.query(QRBulkJob).filter(QRBulkJob.id == job_id)
+        if workspace_id and workspace_id != "ws_legacy_default":
+            query = query.filter(QRBulkJob.workspace_id == workspace_id)
+        j = query.first()
         return self._serialize(j) if j else None
 
-    def cancel_job(self, db: Session, job_id: int) -> Optional[Dict[str, Any]]:
+    def cancel_job(self, db: Session, job_id: int, workspace_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Mark an in-progress or pending bulk job as cancelled."""
-        job = db.query(QRBulkJob).filter(QRBulkJob.id == job_id).first()
+        query = db.query(QRBulkJob).filter(QRBulkJob.id == job_id)
+        if workspace_id and workspace_id != "ws_legacy_default":
+            query = query.filter(QRBulkJob.workspace_id == workspace_id)
+        job = query.first()
         if not job:
             return None
         if job.status not in ("completed", "failed", "cancelled"):
@@ -58,12 +67,14 @@ class BulkService:
         qr_type: str,
         column_mapping: Optional[Dict[str, str]] = None,
         job_name: str = "",
+        workspace_id: str = "ws_legacy_default",
     ) -> Tuple[QRBulkJob, List[Dict[str, Any]]]:
         """Read uploaded file, calculate total rows, and persist pending job."""
         rows = self._read_file(file_path)
         total = len(rows)
 
         job = QRBulkJob(
+            workspace_id=workspace_id,
             job_name=job_name or file_path.stem,
             source_filename=file_path.name,
             total_rows=total,
@@ -163,9 +174,12 @@ class BulkService:
         column_mapping: Optional[Dict[str, str]] = None,
         customization: Optional[Dict[str, Any]] = None,
         job_name: str = "",
+        workspace_id: str = "ws_legacy_default",
     ) -> Dict[str, Any]:
         """Synchronous wrapper for processing a file immediately."""
-        job, rows = self.create_pending_job(db, file_path, qr_type, column_mapping, job_name)
+        job, rows = self.create_pending_job(
+            db, file_path, qr_type, column_mapping, job_name, workspace_id=workspace_id
+        )
         finished_job = self.execute_job(db, job.id, rows, qr_type, column_mapping, customization)
         return self._serialize(finished_job)
 

@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 import {
   BsLightningCharge, BsSearch, BsPlusLg, BsPencil, BsTrash, BsBoxArrowUpRight,
-  BsCopy, BsLock, BsUnlock, BsEye, BsClockHistory, BsCheckCircle, BsXCircle,
+  BsCopy, BsLock, BsUnlock, BsEye, BsClockHistory, BsCheckCircle, BsXCircle, BsFiles,
 } from 'react-icons/bs'
 import { dynamicAPI } from '../services/api'
 
@@ -108,6 +108,15 @@ export default function DynamicQR() {
       queryClient.invalidateQueries({ queryKey: ['dynamic-qrs'] })
     },
     onError: (err) => toast.error(err.message),
+  })
+
+  const duplicateMutation = useMutation({
+    mutationFn: (id) => dynamicAPI.duplicate(id),
+    onSuccess: (res) => {
+      toast.success(`Dynamic QR duplicated! New short code: ${res.data.short_code}`)
+      queryClient.invalidateQueries({ queryKey: ['dynamic-qrs'] })
+    },
+    onError: (err) => toast.error('Failed to duplicate: ' + err.message),
   })
 
   // Handlers
@@ -410,6 +419,14 @@ export default function DynamicQR() {
                           title="Edit Target Destination"
                         >
                           <BsPencil />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => duplicateMutation.mutate(item.id)}
+                          className="p-1.5 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 rounded text-indigo-600 dark:text-indigo-400"
+                          title="Duplicate Dynamic QR"
+                        >
+                          <BsFiles />
                         </button>
                         <button
                           type="button"

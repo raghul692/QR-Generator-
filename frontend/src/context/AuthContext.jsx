@@ -1,8 +1,9 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { authAPI } from '../services/api'
 
 const AuthContext = createContext(null)
 
-const DEMO_USERS = {
+const DEMO_FALLBACK_USERS = {
   admin: {
     id: 'usr_enterprise_admin',
     email: 'admin@enterprise.qrmaster.pro',
@@ -31,59 +32,112 @@ export function AuthProvider({ children }) {
   const [workspaces, setWorkspaces] = useState([])
   const [loading, setLoading] = useState(true)
 
-  // Initialize session from storage
+  // Initialize session from storage / backend verification
   useEffect(() => {
-    try {
-      const storedToken = localStorage.getItem('qrm_auth_token')
-      const storedUser = localStorage.getItem('qrm_user')
-      if (storedToken && storedUser) {
-        setUser(JSON.parse(storedUser))
-      } else {
-        // Default guest / enterprise session
-        const defaultUser = DEMO_USERS.admin
-        setUser(defaultUser)
-        localStorage.setItem('qrm_user', JSON.stringify(defaultUser))
+    let isMounted = true
+    const initSession = async () => {
+      try {
+        const storedToken = localStorage.getItem('qrm_auth_token')
+        const storedUser = localStorage.getItem('qrm_user')
+        if (storedToken && storedUser) {
+          setUser(JSON.parse(storedUser))
+          // Refresh session details from backend
+          try {
+            const res = await authAPI.getMe()
+            if (isMounted && res.data) {
+              if (res.data.user) {
+                setUser((prev) => ({ ...prev, ...res.data.user }))
+                localStorage.setItem('qrm_user', JSON.stringify({ ...JSON.parse(storedUser), ...res.data.user }))
+              }
+              if (res.data.workspaces) {
+                setWorkspaces(res.data.workspaces)
+              }
+              if (res.data.current_workspace?.id) {
+                setCurrentWorkspace(res.data.current_workspace.id)
+                localStorage.setItem('qrm_current_workspace', res.data.current_workspace.id)
+              }
+            }
+          } catch {
+            // Keep local session intact if offline or backend cold starting
+          }
+        } else {
+          // Default guest enterprise session
+          const defaultUser = DEMO_FALLBACK_USERS.admin
+          setUser(defaultUser)
+          localStorage.setItem('qrm_user', JSON.stringify(defaultUser))
+        }
+      } catch {
+        setUser(DEMO_FALLBACK_USERS.admin)
+      } finally {
+        if (isMounted) setLoading(false)
       }
-    } catch {
-      setUser(DEMO_USERS.admin)
-    } finally {
-      setLoading(false)
     }
+    initSession()
+    return () => { isMounted = false }
   }, [])
 
   const login = useCallback(async (email, password) => {
     setLoading(true)
     try {
-      // Create authenticated demo session token
-      const sessionUser = {
-        id: `usr_${btoa(email).replace(/[^a-zA-Z0-9]/g, '').slice(0, 10)}`,
-        email,
-        role: 'admin',
-        name: email.split('@')[0],
+      const res = await authAPI.login({ email, password })
+      const { token, user: loggedInUser, workspace } = res.data
+      localStorage.setItem('qrm_auth_token', token)
+      localStorage.setItem('qrm_user', JSON.stringify(loggedInUser))
+      if (workspace?.id) {
+        localStorage.setItem('qrm_current_workspace', workspace.id)
+        setCurrentWorkspace(workspace.id)
       }
-      const fakeJwt = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.${btoa(JSON.stringify({ sub: sessionUser.id, email, role: 'authenticated' }))}.demoSig`
-      
-      localStorage.setItem('qrm_auth_token', fakeJwt)
-      localStorage.setItem('qrm_user', JSON.stringify(sessionUser))
-      setUser(sessionUser)
-      return { success: true, user: sessionUser }
+      setUser(loggedInUser)
+      return { success: true, user: loggedInUser, workspace }
+    } catch (err) {
+      throw err
     } finally {
       setLoading(false)
     }
   }, [])
 
-  const signup = useCallback(async (email, password) => {
-    return login(email, password)
-  }, [login])
+  const signup = useCallback(async (email, password, name) => {
+    setLoading(true)
+    try {
+      const res = await authAPI.register({ email, password, name })
+      const { token, user: newUser, workspace } = res.data
+      localStorage.setItem('qrm_auth_token', token)
+      localStorage.setItem('qrm_user', JSON.stringify(newUser))
+      if (workspace?.id) {
+        localStorage.setItem('qrm_current_workspace', workspace.id)
+        setCurrentWorkspace(workspace.id)
+      }
+      setUser(newUser)
+      return { success: true, user: newUser, workspace }
+    } catch (err) {
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
-  const demoLogin = useCallback((roleKey = 'admin') => {
-    const demoUser = DEMO_USERS[roleKey] || DEMO_USERS.admin
-    const fakeJwt = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.${btoa(JSON.stringify({ sub: demoUser.id, email: demoUser.email, role: 'authenticated' }))}.demoSig`
-    
-    localStorage.setItem('qrm_auth_token', fakeJwt)
-    localStorage.setItem('qrm_user', JSON.stringify(demoUser))
-    setUser(demoUser)
-    return demoUser
+  const demoLogin = useCallback(async (roleKey = 'admin') => {
+    setLoading(true)
+    try {
+      const res = await authAPI.demoLogin(roleKey)
+      const { token, user: demoUser, workspace } = res.data
+      localStorage.setItem('qrm_auth_token', token)
+      localStorage.setItem('qrm_user', JSON.stringify(demoUser))
+      if (workspace?.id) {
+        localStorage.setItem('qrm_current_workspace', workspace.id)
+        setCurrentWorkspace(workspace.id)
+      }
+      setUser(demoUser)
+      return demoUser
+    } catch {
+      // Fallback if backend is running offline
+      const fallback = DEMO_FALLBACK_USERS[roleKey] || DEMO_FALLBACK_USERS.admin
+      setUser(fallback)
+      localStorage.setItem('qrm_user', JSON.stringify(fallback))
+      return fallback
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   const logout = useCallback(() => {

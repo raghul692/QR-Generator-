@@ -44,3 +44,6 @@ docker-compose.override.yml
 
 # Graphify
 graphify-out/
+
+# Scratch & temporary test scripts
+scratch/

@@ -1,8 +1,8 @@
 """
 QRMaster Pro — Export Service.
 
-Generates reports (CSV, Excel, PDF) of QR history with statistics.
-Also handles single-QR exports in various formats.
+Generates reports (CSV, Excel, PDF) of QR history with statistics and multi-tenant isolation.
+Also handles single-QR exports and printable sticker sheets.
 """
 from __future__ import annotations
 
@@ -28,13 +28,19 @@ def sanitize_export_cell(val: Any) -> Any:
 
 
 class ExportService:
-    """Service for exporting QR data and reports."""
+    """Service for exporting QR data and reports with tenant isolation."""
 
-    def export_history_csv(self, db: Session) -> Tuple[bytes, str]:
-        """Export all QR history as CSV with formula injection defense."""
+    def _get_history_query(self, db: Session, workspace_id: Optional[str] = None):
+        query = db.query(QRHistory)
+        if workspace_id and workspace_id != "ws_legacy_default":
+            query = query.filter(QRHistory.workspace_id == workspace_id)
+        return query.order_by(QRHistory.created_at.desc())
+
+    def export_history_csv(self, db: Session, workspace_id: Optional[str] = None) -> Tuple[bytes, str]:
+        """Export QR history as CSV with formula injection defense and tenant isolation."""
         import pandas as pd
 
-        records = db.query(QRHistory).order_by(QRHistory.created_at.desc()).all()
+        records = self._get_history_query(db, workspace_id).all()
         data = []
         for r in records:
             data.append({
@@ -52,11 +58,11 @@ class ExportService:
         self._log_export(db, None, "report", "csv")
         return buf.getvalue(), "qr_history_report.csv"
 
-    def export_history_excel(self, db: Session) -> Tuple[bytes, str]:
-        """Export all QR history as Excel with formula injection defense."""
+    def export_history_excel(self, db: Session, workspace_id: Optional[str] = None) -> Tuple[bytes, str]:
+        """Export QR history as Excel with formula injection defense and tenant isolation."""
         import pandas as pd
 
-        records = db.query(QRHistory).order_by(QRHistory.created_at.desc()).all()
+        records = self._get_history_query(db, workspace_id).all()
         data = []
         for r in records:
             data.append({
@@ -75,20 +81,23 @@ class ExportService:
         self._log_export(db, None, "report", "excel")
         return buf.getvalue(), "qr_history_report.xlsx"
 
-    def export_history_pdf(self, db: Session) -> Tuple[bytes, str]:
-        """Export a PDF report of QR history with statistics."""
+    def export_history_pdf(self, db: Session, workspace_id: Optional[str] = None) -> Tuple[bytes, str]:
+        """Export a PDF report of QR history with statistics and tenant isolation."""
         from reportlab.lib import colors
         from reportlab.lib.pagesizes import A4, landscape
         from reportlab.lib.styles import getSampleStyleSheet
         from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 
-        records = db.query(QRHistory).order_by(QRHistory.created_at.desc()).limit(100).all()
-        total = db.query(QRHistory).count()
-        total_dl = db.query(func.sum(QRHistory.download_count)).scalar() or 0
+        q = self._get_history_query(db, workspace_id)
+        records = q.limit(100).all()
+        total = q.count()
+        total_dl = db.query(func.sum(QRHistory.download_count))
+        if workspace_id and workspace_id != "ws_legacy_default":
+            total_dl = total_dl.filter(QRHistory.workspace_id == workspace_id)
+        total_dl_val = total_dl.scalar() or 0
 
         buf = io.BytesIO()
-        doc = SimpleDocTemplate(buf, pagesize=landscape(A4),
-                                topMargin=30, bottomMargin=30)
+        doc = SimpleDocTemplate(buf, pagesize=landscape(A4), topMargin=30, bottomMargin=30)
         styles = getSampleStyleSheet()
         elements: List[Any] = []
 
@@ -96,55 +105,58 @@ class ExportService:
         elements.append(Spacer(1, 12))
         elements.append(Paragraph(
             f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')} | "
-            f"Total QR: {total} | Total Downloads: {total_dl}",
+            f"Total QR: {total} | Total Downloads: {total_dl_val}",
             styles["Normal"],
         ))
-        elements.append(Spacer(1, 18))
+        elements.append(Spacer(1, 12))
 
-        # Table
-        header = ["ID", "Title", "Type", "Downloads", "Favorite", "Created"]
-        rows_data = [header]
+        table_data = [["ID", "Title", "Type", "Content", "Downloads", "Favorite", "Created At"]]
         for r in records:
-            rows_data.append([
+            table_data.append([
                 str(r.id),
-                r.title[:30],
+                Paragraph(r.title[:25], styles["Normal"]),
                 r.qr_type,
+                Paragraph((r.content or "")[:35], styles["Normal"]),
                 str(r.download_count),
                 "Yes" if r.is_favorite else "No",
                 r.created_at.strftime("%Y-%m-%d") if r.created_at else "",
             ])
 
-        table = Table(rows_data, repeatRows=1)
-        table.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#6366F1")),
+        t = Table(table_data, colWidths=[35, 130, 60, 200, 65, 55, 75])
+        t.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1E293B")),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
             ("ALIGN", (0, 0), (-1, -1), "LEFT"),
             ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("FONTSIZE", (0, 0), (-1, 0), 9),
             ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
-            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F3F4F6")]),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ]))
-        elements.append(table)
-
+        elements.append(t)
         doc.build(elements)
         self._log_export(db, None, "report", "pdf")
         return buf.getvalue(), "qr_history_report.pdf"
 
     def export_sticker_sheet_pdf(
-        self, db: Session, qr_ids: Optional[List[int]] = None, layout: str = "3x7"
+        self,
+        db: Session,
+        qr_ids: Optional[List[int]] = None,
+        layout: str = "3x7",
+        workspace_id: Optional[str] = None,
     ) -> Tuple[bytes, str]:
-        """Export printable A4 QR sticker sheet layout (3x7 grid = 21 stickers or 3x8 grid = 24 stickers)."""
+        """Export printable A4 QR sticker sheet layout with tenant isolation."""
         from reportlab.lib.pagesizes import A4
         from reportlab.lib.styles import getSampleStyleSheet
         from reportlab.platypus import Image as RLImage, Paragraph, SimpleDocTemplate, Table, TableStyle
         from reportlab.lib import colors
 
         max_stickers = 21 if layout == "3x7" else 24
+        q = self._get_history_query(db, workspace_id)
         if qr_ids:
-            records = db.query(QRHistory).filter(QRHistory.id.in_(qr_ids)).all()
+            records = q.filter(QRHistory.id.in_(qr_ids)).all()
         else:
-            records = db.query(QRHistory).order_by(QRHistory.created_at.desc()).limit(max_stickers).all()
+            records = q.limit(max_stickers).all()
 
         buf = io.BytesIO()
         doc = SimpleDocTemplate(
@@ -152,13 +164,12 @@ class ExportService:
         )
         styles = getSampleStyleSheet()
 
-        # Build grid cells (3 cols x 8 rows)
+        # Build grid cells (3 cols)
         cols = 3
         cell_data: List[List[Any]] = []
         row: List[Any] = []
 
         for r in records:
-            # Load preview image or file image
             img_path = r.file_path or r.preview_path
             if img_path and Path(img_path).exists():
                 rl_img = RLImage(img_path, width=110, height=110)

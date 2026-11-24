@@ -6,6 +6,7 @@ Exposes all API routers for inclusion in the FastAPI application.
 from __future__ import annotations
 
 from app.api.api_key_router import router as api_key_router
+from app.api.auth_router import router as auth_router
 from app.api.backup_router import router as backup_router
 from app.api.bulk_router import router as bulk_router
 from app.api.category_router import router as category_router
@@ -26,6 +27,7 @@ from app.api.webhook_router import router as webhook_router
 from app.api.workspace_router import router as workspace_router
 
 all_routers = [
+    auth_router,
     qr_router,
     history_router,
     category_router,

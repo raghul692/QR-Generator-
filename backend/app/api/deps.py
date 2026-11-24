@@ -147,38 +147,55 @@ def get_current_workspace(
 ) -> str:
     """
     FastAPI dependency to resolve the active tenant workspace ID.
-    Defaults to 'ws_legacy_default' if not specified.
+    Defaults to 'ws_legacy_default' if not specified and user has no custom workspace.
     """
-    target_id = x_workspace_id or workspace_id or LEGACY_DEFAULT_WORKSPACE
-    target_id = target_id.strip()
+    raw_target = x_workspace_id or workspace_id
+    if raw_target:
+        target_id = raw_target.strip()
+        if target_id == LEGACY_DEFAULT_WORKSPACE:
+            return LEGACY_DEFAULT_WORKSPACE
 
-    if target_id == LEGACY_DEFAULT_WORKSPACE:
-        return LEGACY_DEFAULT_WORKSPACE
+        # Verify workspace exists and user has membership or is owner
+        ws = db.query(Workspace).filter(Workspace.id == target_id, Workspace.is_active == True).first()
+        if not ws:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Workspace '{target_id}' not found or inactive",
+            )
 
-    # Verify workspace exists and user has membership or is owner
-    ws = db.query(Workspace).filter(Workspace.id == target_id, Workspace.is_active == True).first()
-    if not ws:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Workspace '{target_id}' not found or inactive",
+        user_id = current_user.get("id")
+        if user_id == ws.owner_id or user_id == "usr_legacy_default":
+            return target_id
+
+        member = (
+            db.query(WorkspaceMember)
+            .filter(WorkspaceMember.workspace_id == target_id, WorkspaceMember.user_id == user_id)
+            .first()
         )
+        if not member:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have access to this workspace",
+            )
 
-    user_id = current_user.get("id")
-    if user_id == ws.owner_id:
         return target_id
 
-    member = (
-        db.query(WorkspaceMember)
-        .filter(WorkspaceMember.workspace_id == target_id, WorkspaceMember.user_id == user_id)
-        .first()
-    )
-    if not member:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have access to this workspace",
+    # If no explicit workspace provided, check if authenticated user owns or belongs to a workspace
+    user_id = current_user.get("id")
+    if user_id and user_id != "usr_legacy_default":
+        owned_ws = db.query(Workspace).filter(Workspace.owner_id == user_id, Workspace.is_active == True).first()
+        if owned_ws:
+            return owned_ws.id
+        member_ws = (
+            db.query(WorkspaceMember)
+            .join(Workspace, Workspace.id == WorkspaceMember.workspace_id)
+            .filter(WorkspaceMember.user_id == user_id, Workspace.is_active == True)
+            .first()
         )
+        if member_ws:
+            return member_ws.workspace_id
 
-    return target_id
+    return LEGACY_DEFAULT_WORKSPACE
 
 
 def require_role(allowed_roles: List[str]):

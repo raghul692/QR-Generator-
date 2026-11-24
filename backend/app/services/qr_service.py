@@ -69,9 +69,10 @@ class QRService:
         category_id: Optional[int] = None,
         customization: Optional[Dict[str, Any]] = None,
         save_to_history: bool = True,
+        workspace_id: str = "ws_legacy_default",
     ) -> Dict[str, Any]:
         """Generate a QR code, optionally persist to history, return response."""
-        logger.info(f"Generating QR: type={qr_type}, title={title}")
+        logger.info(f"Generating QR: type={qr_type}, title={title}, workspace={workspace_id}")
 
         # Fallback category_id from data if not passed explicitly at top level
         if category_id is None and isinstance(data, dict):
@@ -100,6 +101,7 @@ class QRService:
                 target_url=target_url,
                 password=customization.get("password"),
                 expires_at=expires_at,
+                workspace_id=workspace_id,
             )
             encoded = f"{settings.public_redirect_url}/r/{dyn.short_code}"
             logger.info(f"Dynamic QR enabled: short_code={dyn.short_code}, redirect_url={encoded}")
@@ -129,6 +131,7 @@ class QRService:
         history_id = None
         if save_to_history:
             history = QRHistory(
+                workspace_id=workspace_id,
                 title=title,
                 qr_type=qr_type,
                 content=json.dumps(data, ensure_ascii=False),
